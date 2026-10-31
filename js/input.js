@@ -32,14 +32,26 @@ export function resolveSwipeDirection(dx, dy) {
 }
 
 /**
- * 보드 컨테이너에 터치 스와이프, 마우스 드래그, 키보드 방향키 이벤트를 등록합니다.
+ * 보드 컨테이너에 터치 스와이프, 마우스 드래그, 키보드 조작 이벤트를 등록합니다.
+ *
+ * 키보드 조작:
+ * - 숫자키 1(빨강), 2(초록), 3(파랑), 4(노랑) 또는 Tab(순환): 로봇 선택
+ * - 방향키(↑, ↓, ←, →) 및 W, A, S, D: 선택된 로봇 미끄러짐 이동
+ * - Z 키 또는 Ctrl+Z: 마지막 이동 되돌리기(Undo)
+ * - R 키: 현재 라운드 처음부터 다시하기(Reset)
  *
  * @param {HTMLElement} boardEl 스와이프를 감지할 보드 래퍼 엘리먼트 (.board-wrapper)
  * @param {object} callbacks
  * @param {function(string): void} callbacks.onSelectRobot 로봇 선택 콜백 (color)
  * @param {function(string): void} callbacks.onMoveDirection 방향 이동 콜백 (direction)
+ * @param {function(): void} [callbacks.onUndo] 되돌리기 콜백
+ * @param {function(): void} [callbacks.onReset] 처음부터 다시하기 콜백
+ * @param {function(): string} [callbacks.getSelectedRobot] 현재 선택된 로봇 색상 반환 함수
  */
-export function bindInputEvents(boardEl, { onSelectRobot, onMoveDirection }) {
+export function bindInputEvents(
+  boardEl,
+  { onSelectRobot, onMoveDirection, onUndo, onReset, getSelectedRobot }
+) {
   if (!boardEl) return;
 
   let startX = null;
@@ -119,8 +131,69 @@ export function bindInputEvents(boardEl, { onSelectRobot, onMoveDirection }) {
     }
   });
 
-  // 3. 키보드 방향키 / WASD 지원 (데스크톱 테스트용)
+  // 3. 데스크톱 키보드 조작 지원
+  const ROBOT_CYCLE = ['red', 'green', 'blue', 'yellow'];
+
   window.addEventListener('keydown', (e) => {
+    // 인풋/텍스트에 포커스되어 타이핑 중일 때는 단축키 무시
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) {
+      return;
+    }
+
+    // 1) 로봇 선택: 숫자키 1, 2, 3, 4
+    if (e.code === 'Digit1' || e.key === '1') {
+      e.preventDefault();
+      if (typeof onSelectRobot === 'function') onSelectRobot('red');
+      return;
+    }
+    if (e.code === 'Digit2' || e.key === '2') {
+      e.preventDefault();
+      if (typeof onSelectRobot === 'function') onSelectRobot('green');
+      return;
+    }
+    if (e.code === 'Digit3' || e.key === '3') {
+      e.preventDefault();
+      if (typeof onSelectRobot === 'function') onSelectRobot('blue');
+      return;
+    }
+    if (e.code === 'Digit4' || e.key === '4') {
+      e.preventDefault();
+      if (typeof onSelectRobot === 'function') onSelectRobot('yellow');
+      return;
+    }
+
+    // 2) 로봇 순환 선택: Tab (Shift+Tab은 역순)
+    if (e.code === 'Tab') {
+      e.preventDefault();
+      const current = typeof getSelectedRobot === 'function' ? getSelectedRobot() : 'red';
+      const curIdx = ROBOT_CYCLE.indexOf(current);
+      const step = e.shiftKey ? -1 : 1;
+      const nextIdx = (curIdx + step + ROBOT_CYCLE.length) % ROBOT_CYCLE.length;
+      if (typeof onSelectRobot === 'function') {
+        onSelectRobot(ROBOT_CYCLE[nextIdx]);
+      }
+      return;
+    }
+
+    // 3) 되돌리기(Undo): Z 키 또는 Ctrl+Z / Cmd+Z
+    if (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z') {
+      e.preventDefault();
+      if (typeof onUndo === 'function') onUndo();
+      return;
+    }
+
+    // 4) 처음부터 다시하기(Reset): R 키
+    if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R') {
+      // Ctrl+R(브라우저 새로고침)은 방해하지 않음
+      if (!e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        if (typeof onReset === 'function') onReset();
+        return;
+      }
+    }
+
+    // 5) 방향키 및 WASD 이동
     const keyMap = {
       ArrowUp: DIRECTIONS.UP,
       KeyW: DIRECTIONS.UP,

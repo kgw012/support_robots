@@ -101,6 +101,10 @@ const leaderboardBodyEl = document.getElementById('leaderboard-body');
 const btnLeaderboardCloseEl = document.getElementById('btn-leaderboard-close');
 const btnLeaderboardCloseTopEl = document.getElementById('btn-leaderboard-close-top');
 
+const leaveConfirmModalEl = document.getElementById('leave-confirm-modal');
+const btnLeaveStayEl = document.getElementById('btn-leave-stay');
+const btnLeaveConfirmEl = document.getElementById('btn-leave-confirm');
+
 const DIFF_META = Object.freeze({
   easy: { label: 'EASY', range: '1 ~ 4회' },
   normal: { label: 'NORMAL', range: '5 ~ 7회' },
@@ -375,12 +379,37 @@ function enterDailyChallengeMode() {
 
 function returnToLobby(fromPopState = false) {
   hideHudPopover();
+  if (leaveConfirmModalEl) {
+    leaveConfirmModalEl.hidden = true;
+  }
   syncLobbyDifficultyUI();
   syncAuthUI();
   if (gameScreenEl) gameScreenEl.hidden = true;
   if (lobbyScreenEl) lobbyScreenEl.hidden = false;
   if (!fromPopState) {
     trackAnalyticsView('lobby', false);
+  }
+}
+
+/**
+ * 퍼즐 진행 중(이동 1회 이상)일 때 로비 이동 확인 모달을 열거나,
+ * 진행 전/클리어 상태라면 즉시 로비로 이동합니다.
+ * @param {'popstate' | 'backButton'} source
+ */
+function requestLeaveToLobby(source = 'backButton') {
+  const isPlaying = !gameState.isCleared && gameState.moveCount > 0;
+  if (!isPlaying) {
+    returnToLobby(source === 'popstate');
+    return;
+  }
+
+  // 브라우저 뒤로가기(popstate)로 인한 진입인 경우, 사용자가 취소할 때를 대비해 히스토리를 1단계 복구
+  if (source === 'popstate') {
+    trackAnalyticsView(gameState.gameMode || 'infinite', true);
+  }
+
+  if (leaveConfirmModalEl) {
+    leaveConfirmModalEl.hidden = false;
   }
 }
 
@@ -908,15 +937,36 @@ function bootstrap() {
   }
 
   if (btnBackLobbyEl) {
-    btnBackLobbyEl.addEventListener('click', () => returnToLobby(false));
+    btnBackLobbyEl.addEventListener('click', () => requestLeaveToLobby('backButton'));
   }
 
   window.addEventListener('popstate', (e) => {
     if (e.state && e.state.synthetic) return;
     if (gameScreenEl && !gameScreenEl.hidden) {
-      returnToLobby(true);
+      requestLeaveToLobby('popstate');
     }
   });
+
+  // 로비 이탈 확인 모달 이벤트
+  if (btnLeaveStayEl) {
+    btnLeaveStayEl.addEventListener('click', () => {
+      if (leaveConfirmModalEl) leaveConfirmModalEl.hidden = true;
+    });
+  }
+
+  if (btnLeaveConfirmEl) {
+    btnLeaveConfirmEl.addEventListener('click', () => {
+      returnToLobby(false);
+    });
+  }
+
+  if (leaveConfirmModalEl) {
+    leaveConfirmModalEl.addEventListener('click', (e) => {
+      if (e.target === leaveConfirmModalEl) {
+        leaveConfirmModalEl.hidden = true;
+      }
+    });
+  }
 
   // 플레이 중 4분마다 활성 세션 신호를 갱신하여 장시간 고민 중에도 online 상태 유지
   setInterval(() => {
@@ -996,6 +1046,9 @@ function bootstrap() {
   bindInputEvents(boardWrapperEl, {
     onSelectRobot: handleSelectRobot,
     onMoveDirection: handleMoveDirection,
+    onUndo: handleUndo,
+    onReset: handleReset,
+    getSelectedRobot: () => gameState.selectedRobot,
   });
 
   if (btnUndoEl) {
