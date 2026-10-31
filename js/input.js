@@ -67,7 +67,25 @@ export function bindInputEvents(
   }
 
   // 1. 모바일 터치 이벤트 (touchstart / touchmove / touchend)
-  // 보드판뿐만 아니라 화면 전체(window)에서 좌우 스와이프 시 카카오톡/브라우저 뒤로가기 제스처를 원천 차단합니다.
+  // iOS Safari 및 카카오톡 WKWebView는 touchmove 시점이 아니라 touchstart 시점에
+  // 화면 가장자리(edge) 터치를 e.preventDefault()하지 않으면 네이티브 뒤로가기가 먼저 가로챕니다.
+  window.addEventListener(
+    'touchstart',
+    (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      const touchX = e.touches[0].clientX;
+      const edgeThreshold = 35; // 화면 양쪽 가장자리 35px 이내 터치 감지
+
+      // 가장자리에서 시작된 터치이거나 보드판 영역 내부 터치라면 네이티브 제스처 즉시 차단
+      if (touchX < edgeThreshold || touchX > window.innerWidth - edgeThreshold || e.target.closest('.board-wrapper')) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+      }
+    },
+    { passive: false }
+  );
+
   window.addEventListener(
     'touchmove',
     (e) => {
@@ -78,7 +96,7 @@ export function bindInputEvents(
       const dx = Math.abs(touch.clientX - startX);
       const dy = Math.abs(touch.clientY - startY);
 
-      // 가로 이동이 조금이라도 감지되면 브라우저/카카오톡 엣지 스와이프 뒤로가기 제스처를 즉시 무력화
+      // 가로 이동이 감지되면 브라우저/카카오톡 엣지 스와이프 뒤로가기 제스처를 즉시 무력화
       if (dx > dy && dx > 4 && e.cancelable) {
         e.preventDefault();
       }
