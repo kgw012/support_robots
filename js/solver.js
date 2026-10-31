@@ -693,6 +693,7 @@ export function evaluateBoardCandidates(board, robots, options = {}) {
       maxCollisions,
       difficulty,
       score: 0,
+      solved: res.solved,
     };
     candidate.score = scoreCandidatePuzzle(candidate);
     return candidate;
