@@ -106,6 +106,7 @@ const btnSkipStageEl = document.getElementById('btn-skip-stage');
 const btnClearRetryEl = document.getElementById('btn-clear-retry');
 const btnClearNextEl = document.getElementById('btn-clear-next');
 const clearModeRewardEl = document.getElementById('clear-mode-reward');
+const clearOverlayEl = document.getElementById('clear-overlay');
 
 const hudTargetBadgeEl = document.getElementById('hud-target-badge');
 const hudDifficultyBadgeEl = document.getElementById('hud-difficulty-badge');
@@ -423,6 +424,9 @@ function returnToLobby(fromPopState = false) {
   if (leaveConfirmModalEl) {
     leaveConfirmModalEl.hidden = true;
   }
+  if (clearOverlayEl) {
+    clearOverlayEl.hidden = true;
+  }
   syncLobbyDifficultyUI();
   syncAuthUI();
   if (gameScreenEl) gameScreenEl.hidden = true;
@@ -433,23 +437,32 @@ function returnToLobby(fromPopState = false) {
 }
 
 /**
- * 인게임 상태에서 뒤로가기 발생 시 (이동 0회라도 게임 중이면) 확인 모달을 표시합니다.
+ * 인게임 상태에서 뒤로가기(화면이동) 발생 시 이탈 처리
+ * - 게임 진행 중 1회 이상 조작(moveCount > 0)한 경우에만 확인 모달을 띄워 진행 상황 소실을 방지합니다.
+ * - 조작이 없었거나(moveCount === 0) 이미 클리어하여 결과창이 표시된 상태(isCleared)에서는 확인창 없이 즉시 로비로 이동합니다.
  * @param {'popstate' | 'backButton'} source
  */
 function requestLeaveToLobby(source = 'backButton') {
   // 이미 로비에 있다면 무시
   if (gameScreenEl && gameScreenEl.hidden) return;
 
-  // 이미 모달이 열려있다면 중복 방지
+  // 이미 확인 모달이 열려있다면 중복 방지
   if (leaveConfirmModalEl && !leaveConfirmModalEl.hidden) return;
 
-  // 브라우저/카카오톡 뒤로가기(popstate)로 인한 진입인 경우, 취소 시 게임을 유지하도록 히스토리를 1단계 복구
-  if (source === 'popstate') {
-    trackAnalyticsView(gameState.gameMode || 'infinite', true);
-  }
+  // 게임 진행 중(미클리어)이면서 1회 이상 이동한 경우에만 확인창 표시
+  const shouldConfirm = !gameState.isCleared && (gameState.moveCount > 0);
 
-  if (leaveConfirmModalEl) {
-    leaveConfirmModalEl.hidden = false;
+  if (shouldConfirm) {
+    // 브라우저/카카오톡 뒤로가기(popstate)로 인한 진입인 경우, 취소 시 게임을 유지하도록 히스토리를 1단계 복구
+    if (source === 'popstate') {
+      trackAnalyticsView(gameState.gameMode || 'infinite', true);
+    }
+    if (leaveConfirmModalEl) {
+      leaveConfirmModalEl.hidden = false;
+    }
+  } else {
+    // 0회 이동이거나 결과창(성공) 상태에서는 확인창 없이 즉시 로비로 복귀
+    returnToLobby(source === 'popstate');
   }
 }
 
