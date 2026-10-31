@@ -833,17 +833,19 @@ async function handleShareDailyRecord() {
     : 'https://supportrobots.vercel.app';
   const shareUrl = `${origin}/?mode=daily&diff=${diffKey}`;
 
-  const shareTitle = `🤖 서포트 로봇 일일 챌린지 [${diffLabel}]`;
-  const shareMessageBody = `🤖 서포트 로봇 일일 챌린지 [${diffLabel}]\n🎯 ${gameState.moveCount}회 이동 · 완충 ${gameState.collisionCount}회로 구조 성공!`;
+  // 링크 포함 정확히 3줄로 완성된 단일 공유 텍스트
+  const fullShareText = `🤖 서포트 로봇 일일 챌린지 [${diffLabel}]\n🎯 ${gameState.moveCount}회 이동 · 완충 ${gameState.collisionCount}회로 구조 성공!\n${shareUrl}`;
 
-  // 1) 모바일 Web Share API 시도 (URL 중복 방지를 위해 text에는 본문만 전달)
-  if (typeof navigator !== 'undefined' && navigator.share) {
+  // 1) 모바일 Web Share API 시도
+  // url 파라미터를 따로 전달하면 카카오톡 등 메신저에서 '텍스트'와 '링크'가 2개의 메시지로 분할 전송됩니다.
+  // 완성된 3줄 전체를 text 하나로 묶어 전달하면 카카오톡/인스타그램/문자 등 모든 앱에서 1개의 말풍선으로 깔끔하게 전송됩니다.
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    const shareData = { text: fullShareText };
     try {
-      await navigator.share({
-        title: shareTitle,
-        text: shareMessageBody,
-        url: shareUrl,
-      });
+      if (typeof navigator.canShare === 'function' && !navigator.canShare(shareData)) {
+        throw new Error('Web Share not supported for this data');
+      }
+      await navigator.share(shareData);
       showShareFeedback('✅ 공유 완료!');
       return;
     } catch (err) {
@@ -851,16 +853,15 @@ async function handleShareDailyRecord() {
         // 사용자가 네이티브 공유창을 닫은 경우 피드백 없이 종료
         return;
       }
-      // 권한 오류나 미지원 시 클립보드 복사로 fallback 진행
+      // 권한 오류나 미지원 시 아래 클립보드 복사(2단계 Fallback)로 안전하게 진행
     }
   }
 
-  // 2) 클립보드 복사 Fallback (본문 + 링크 총 3줄)
-  const fullTextToCopy = `${shareMessageBody}\n${shareUrl}`;
+  // 2) 클립보드 복사 Fallback (동일한 3줄 텍스트 복사)
   let copied = false;
   if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
     try {
-      await navigator.clipboard.writeText(fullTextToCopy);
+      await navigator.clipboard.writeText(fullShareText);
       copied = true;
     } catch (_) {}
   }
@@ -868,7 +869,7 @@ async function handleShareDailyRecord() {
   if (!copied && typeof document !== 'undefined') {
     try {
       const ta = document.createElement('textarea');
-      ta.value = fullTextToCopy;
+      ta.value = fullShareText;
       ta.style.position = 'fixed';
       ta.style.left = '-9999px';
       ta.style.top = '-9999px';
