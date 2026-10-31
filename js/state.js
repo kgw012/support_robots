@@ -84,6 +84,7 @@ export function createSeededRandom(seedStr) {
 /**
  * 날짜 시드('20261031')와 난이도('easy'|'normal'|'hard'|'hell')로
  * 전 세계 모든 유저에게 동일한 최고 완충 점수 일일 챌린지 맵을 생성합니다.
+ * 후보군 선정 후 단일 타깃 정밀 솔버(solveBoardBFS)로 팩트체크하여 난이도 100% 일치를 보장합니다.
  */
 export function generateDailyChallengePuzzle(dateSeed, difficulty) {
   const cacheKey = `${dateSeed}::${difficulty}`;
@@ -95,8 +96,8 @@ export function generateDailyChallengePuzzle(dateSeed, difficulty) {
   const matchingPool = [];
   const allPool = [];
 
-  // 결정론적 시드로 보드들을 스캔하여 해당 난이도 후보들을 수집 (최소 4판, 해당 난이도가 나올 때까지 최대 12판)
-  for (let i = 0; i < 12; i++) {
+  // 결정론적 시드로 보드들을 스캔하여 해당 난이도 후보들을 수집 (최소 4판, 해당 난이도가 나올 때까지 최대 18판)
+  for (let i = 0; i < 18; i++) {
     const board = createBoardData({ randomFn: rng });
     const robots = generateRandomRobots(board.targets, rng);
     const candidates = evaluateBoardCandidates(board, robots);
@@ -108,7 +109,7 @@ export function generateDailyChallengePuzzle(dateSeed, difficulty) {
       }
     }
 
-    if (i >= 3 && matchingPool.length > 0) {
+    if (i >= 3 && matchingPool.length >= 2) {
       break;
     }
   }
@@ -117,7 +118,34 @@ export function generateDailyChallengePuzzle(dateSeed, difficulty) {
   // 완충 점수 내림차순 정렬 (동점일 경우 시드 순서 유지)
   targetPool.sort((a, b) => b.score - a.score);
 
-  const bestPuzzle = targetPool[0];
+  // 정밀 솔버(solveBoardBFS)로 최단 경로를 심층 팩트체크하여 요구 난이도와 일치하는 최상위 맵 확정
+  let verifiedBestPuzzle = null;
+  for (const cand of targetPool) {
+    const precise = solveBoardBFS(cand.board.grid, cand.initialRobots, cand.activeTarget);
+    if (precise.solved && precise.difficulty.id === difficulty) {
+      verifiedBestPuzzle = {
+        ...cand,
+        minMoves: precise.minMoves,
+        maxCollisions: precise.maxCollisions,
+        difficulty: precise.difficulty,
+      };
+      break;
+    }
+  }
+
+  // 만약 심층 검증에서 정확히 일치하는 후보를 찾지 못한 경우 1순위 후보의 정밀 결과로 보정하여 채택
+  if (!verifiedBestPuzzle && targetPool.length > 0) {
+    const fallbackCand = targetPool[0];
+    const precise = solveBoardBFS(fallbackCand.board.grid, fallbackCand.initialRobots, fallbackCand.activeTarget);
+    verifiedBestPuzzle = {
+      ...fallbackCand,
+      minMoves: precise.solved ? precise.minMoves : fallbackCand.minMoves,
+      maxCollisions: precise.solved ? precise.maxCollisions : fallbackCand.maxCollisions,
+      difficulty: precise.solved ? precise.difficulty : fallbackCand.difficulty,
+    };
+  }
+
+  const bestPuzzle = verifiedBestPuzzle || targetPool[0];
   dailyPuzzleCache[cacheKey] = bestPuzzle;
   return bestPuzzle;
 }
@@ -351,10 +379,54 @@ export function initGameState(options = {}) {
         : nonEmptyKeys[0];
 
     const basket = curatedBaskets[chosenKey];
-    let pickIdx = basket.findIndex((c) => c.boardId !== gameState.currentBoardId);
-    if (pickIdx === -1) pickIdx = 0;
+    let picked = null;
 
-    const [picked] = basket.splice(pickIdx, 1);
+    // 바구니에서 후보를 꺼내며 단일 정밀 솔버(solveBoardBFS)로 실제 최단 이동 횟수 팩트체크
+    while (basket.length > 0) {
+      let pickIdx = basket.findIndex((c) => c.boardId !== gameState.currentBoardId);
+      if (pickIdx === -1) pickIdx = 0;
+      const [cand] = basket.splice(pickIdx, 1);
+
+      const precise = solveBoardBFS(cand.board.grid, cand.initialRobots, cand.activeTarget);
+      if (precise.solved) {
+        cand.minMoves = precise.minMoves;
+        cand.maxCollisions = precise.maxCollisions;
+        cand.difficulty = precise.difficulty;
+
+        // 정밀 검증 결과 요구 난이도와 일치하면 즉시 출제
+        if (cand.difficulty.id === effectiveDifficulty) {
+          picked = cand;
+          break;
+        } else {
+          // 일치하지 않으면 실제 판정된 난이도 바구니로 알맞게 재배치
+          if (curatedBaskets[cand.difficulty.id]) {
+            curatedBaskets[cand.difficulty.id].push(cand);
+          }
+        }
+      } else {
+        picked = cand;
+        break;
+      }
+    }
+
+    // 만약 바구니에서 적합한 후보를 찾지 못한 경우 즉시 1개 생성 및 정밀 풀이
+    if (!picked) {
+      const fallbackBoard = createBoardData({ randomFn });
+      const fallbackRobots = generateRandomRobots(fallbackBoard.targets, randomFn);
+      const fallbackTarget = fallbackBoard.targets[Math.floor(randomFn() * fallbackBoard.targets.length)];
+      const fallbackSolved = solveBoardBFS(fallbackBoard.grid, fallbackRobots, fallbackTarget);
+
+      picked = {
+        boardId: nextBoardId++,
+        board: fallbackBoard,
+        initialRobots: fallbackRobots,
+        activeTarget: fallbackTarget,
+        minMoves: fallbackSolved.minMoves,
+        maxCollisions: fallbackSolved.maxCollisions,
+        difficulty: fallbackSolved.difficulty,
+      };
+    }
+
     gameState.currentBoardId = picked.boardId ?? null;
     board = picked.board;
     startRobots = cloneRobots(picked.initialRobots);

@@ -26,7 +26,22 @@ export const authState = {
 };
 
 /**
- * 닉네임 유효성 및 바이트(한글 2B, 영문 1B, 최대 16B) 검증
+ * 부적절한 단어 (욕설, 비속어, 성적/혐오/비하 표현) 금칙어 목록
+ */
+const PROFANITY_WORDS = Object.freeze([
+  // 한국어 비속어/욕설/비하
+  '시발', '씨발', '쉬발', '슈발', '시벌', '씨벌', '씨팔', '시팔',
+  '개새', '개새끼', '개색', '새끼', '새키', '병신', '븅신', '등신',
+  '지랄', '엠창', '애미', '애비', '느금', '창녀', '걸레', '보지', '자지',
+  '섹스', '야동', '성폭', '강간', '변태', '존나', '졸라', '썅',
+  '미친놈', '미친년', '호구', '일베', '메갈', '한남', '한녀',
+  // 영어 비속어/비하
+  'fuck', 'shit', 'bitch', 'asshole', 'dick', 'pussy', 'bastard',
+  'cunt', 'nigger', 'faggot', 'whore', 'slut', 'cock',
+]);
+
+/**
+ * 닉네임 유효성 및 바이트(한글 2B, 영문 1B, 최대 16B) 검증 및 금칙어 검사
  * @param {string} rawNickname
  * @returns {{ valid: boolean, nickname: string, byteLength: number, message: string }}
  */
@@ -49,6 +64,19 @@ export function validateNickname(rawNickname) {
       byteLength: 0,
       message: '닉네임은 공백·숫자·특수문자 없이 한글과 영문으로만 입력해 주세요.',
     };
+  }
+
+  // 부적절한 단어 포함 여부 검사 (대소문자 무시)
+  const lowerNick = nickname.toLowerCase();
+  for (const badWord of PROFANITY_WORDS) {
+    if (lowerNick.includes(badWord)) {
+      return {
+        valid: false,
+        nickname,
+        byteLength: 0,
+        message: '부적절한 단어가 포함된 닉네임은 사용할 수 없습니다.',
+      };
+    }
   }
 
   let byteLength = 0;
