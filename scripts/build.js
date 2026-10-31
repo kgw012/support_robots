@@ -213,9 +213,12 @@ function runBuild() {
   const minifiedHTML = buildHTML(rawHTML);
   fs.writeFileSync(path.join(DIST_DIR, 'index.html'), minifiedHTML, 'utf8');
 
-  const faviconPath = path.join(ROOT_DIR, 'favicon.svg');
-  if (fs.existsSync(faviconPath)) {
-    fs.copyFileSync(faviconPath, path.join(DIST_DIR, 'favicon.svg'));
+  const staticAssets = ['favicon.svg', 'favicon.png', 'og-image.png'];
+  for (const asset of staticAssets) {
+    const assetPath = path.join(ROOT_DIR, asset);
+    if (fs.existsSync(assetPath)) {
+      fs.copyFileSync(assetPath, path.join(DIST_DIR, asset));
+    }
   }
 
   console.log('✅ Build complete! Output in dist/:');
