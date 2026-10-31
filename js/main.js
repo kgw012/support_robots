@@ -34,6 +34,8 @@ const btnClearRetryEl = document.getElementById('btn-clear-retry');
 const btnClearNextEl = document.getElementById('btn-clear-next');
 const hudTargetBadgeEl = document.getElementById('hud-target-badge');
 const hudDifficultyBadgeEl = document.getElementById('hud-difficulty-badge');
+const hudMoveBoxEl = document.getElementById('hud-move-box');
+const hudCollisionBoxEl = document.getElementById('hud-collision-box');
 const hudInfoPopoverEl = document.getElementById('hud-info-popover');
 
 const HUD_INFO_CONTENT = Object.freeze({
@@ -62,6 +64,17 @@ const HUD_INFO_CONTENT = Object.freeze({
         <span>12회 이상</span>
       </div>
     </div>
+  `,
+  move: `
+    <strong>이동 횟수 (순위 판정 1순위 · 낮을수록 우수)</strong>
+    보조 로봇을 포함해 라운드 동안 로봇이 미끄러져 기동한 총 횟수입니다.<br/>
+    붕괴 중인 지하 폐기장의 지반 진동을 최소화하기 위해, <b>최소한의 이동 횟수(최단 경로)</b>로 구조할수록 가장 높은 우선순위를 부여받습니다.
+  `,
+  collision: `
+    <strong>완충 횟수 — 로봇 간 충격 흡수 (순위 판정 2순위 · 높을수록 우수)</strong>
+    미끄러진 로봇이 단단한 벽 대신 <b>다른 로봇에 부딪혀 멈춘 횟수</b>입니다 (벽 충돌 제외).<br/>
+    콘크리트 외벽 충돌은 지반 붕괴를 가속하지만, 동료 로봇에 부딪히면 내장된 <b>유압식 충격 흡수 장치(Shock Absorber)</b>가 작동해 충격파를 안전하게 분산시킵니다.<br/>
+    ※ <b>이동 횟수가 같다면, 완충 횟수가 많을수록</b> 더 정교하고 안전한 구조로 인정되어 높은 순위를 획득합니다!
   `,
 });
 
@@ -252,6 +265,8 @@ function bootstrap() {
 
   bindBadgeInfo(hudTargetBadgeEl, 'target');
   bindBadgeInfo(hudDifficultyBadgeEl, 'difficulty');
+  bindBadgeInfo(hudMoveBoxEl, 'move');
+  bindBadgeInfo(hudCollisionBoxEl, 'collision');
 
   document.addEventListener('click', () => {
     hideHudPopover();

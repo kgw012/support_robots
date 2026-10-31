@@ -53,11 +53,23 @@
           </span>
         </div>
         <div class="stats-Counters">
-          <div class="stat-box" title="총 이동 횟수 (낮을수록 우수)">
+          <div
+            id="hud-move-box"
+            class="stat-box is-interactive"
+            role="button"
+            tabindex="0"
+            aria-label="이동 횟수 설명 보기"
+          >
             <span>이동</span>
             <strong id="hud-move-count">0</strong>
           </div>
-          <div class="stat-box" title="로봇 간 완충 충돌 횟수 (높을수록 우수)">
+          <div
+            id="hud-collision-box"
+            class="stat-box is-interactive"
+            role="button"
+            tabindex="0"
+            aria-label="완충 충돌 설명 보기"
+          >
             <span>완충</span>
             <strong id="hud-collision-count">0</strong>
           </div>
