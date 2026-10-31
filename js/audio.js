@@ -71,6 +71,10 @@ export function isBGMMuted() {
   return isBGMMutedState;
 }
 
+export function isBGMActive() {
+  return bgmRunning;
+}
+
 export function isSFXMuted() {
   return isSFXMutedState;
 }
@@ -353,30 +357,43 @@ function bgmScheduler() {
 export function startBGM() {
   if (isBGMMutedState || bgmRunning) return;
   const ctx = getAudioContext();
-  if (!ctx || ctx.state !== 'running') return;
+  if (!ctx) return;
+
+  // 오디오 컨텍스트가 suspended 상태인 경우 포기하지 않고 즉시 resume 후 연주 개시
+  if (ctx.state !== 'running') {
+    ctx.resume().then(() => {
+      if (!isBGMMutedState && !bgmRunning) {
+        startBGM();
+      }
+    }).catch(() => {});
+    return;
+  }
 
   try {
     const now = ctx.currentTime;
 
     // 마스터 BGM 게인 (0.55 수준의 편안한 청취 레벨)
+    // 클릭 팝 방지를 위한 0.05초 초고속 페이드인으로 딜레이 없이 첫 음부터 즉각 선명하게 연주
     bgmMasterGain = ctx.createGain();
     bgmMasterGain.gain.setValueAtTime(0.001, now);
-    bgmMasterGain.gain.linearRampToValueAtTime(0.55, now + 0.8);
+    bgmMasterGain.gain.linearRampToValueAtTime(0.55, now + 0.05);
     bgmMasterGain.connect(ctx.destination);
 
     bgmPadVoices = [null, null, null];
 
-    // 신스 패드 전용 마스터 게인 (출렁임 없는 평온한 단일 게인)
+    // 신스 패드 전용 마스터 게인
     bgmPadMasterGain = ctx.createGain();
     bgmPadMasterGain.gain.setValueAtTime(0.001, now);
-    bgmPadMasterGain.gain.linearRampToValueAtTime(1.0, now + 0.3);
+    bgmPadMasterGain.gain.linearRampToValueAtTime(1.0, now + 0.05);
     bgmPadMasterGain.connect(bgmMasterGain);
 
     // --- 🎵 멜로디 및 앰비언트 패드 시퀀서 시작 ---
     bgmCurrentStep = 0;
-    bgmNextNoteTime = now + 0.05;
+    bgmNextNoteTime = now;
     bgmRunning = true;
 
+    // 0ms 즉시 스케줄링: 인터벌을 기다리지 않고 첫 음표들을 즉각 큐에 삽입
+    bgmScheduler();
     bgmIntervalId = setInterval(bgmScheduler, LOOKAHEAD_MS);
   } catch (_) {
     bgmRunning = false;

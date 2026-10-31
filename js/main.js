@@ -28,6 +28,7 @@ import { buildSolverFeedback } from './solver.js';
 import {
   unlockAudio,
   isBGMMuted,
+  isBGMActive,
   isSFXMuted,
   toggleBGMMute,
   toggleSFXMute,
@@ -383,6 +384,11 @@ function syncInGameHeaderByMode() {
 }
 
 function enterInfiniteMode() {
+  unlockAudio();
+  if (!isBGMMuted()) {
+    startBGM();
+  }
+
   if (lobbyScreenEl) lobbyScreenEl.hidden = true;
   if (gameScreenEl) gameScreenEl.hidden = false;
   if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
@@ -402,6 +408,11 @@ function enterDailyChallengeMode() {
     showLobbyToast('🔒 일일 챌린지는 상단에서 대원 접속(로그인) 후 입장할 수 있습니다!');
     if (inputNicknameEl) inputNicknameEl.focus();
     return;
+  }
+
+  unlockAudio();
+  if (!isBGMMuted()) {
+    startBGM();
   }
 
   if (lobbyScreenEl) lobbyScreenEl.hidden = true;
@@ -1138,6 +1149,7 @@ async function bootstrap() {
     lobbyDailyDiffDrawerEl.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-daily-diff]');
       if (!btn || !btn.dataset.dailyDiff) return;
+      playButtonClick();
       gameState.dailyDifficultyMode = btn.dataset.dailyDiff;
       syncLobbyDifficultyUI();
       lobbyDailyDiffDrawerEl.hidden = true;
@@ -1147,12 +1159,14 @@ async function bootstrap() {
   if (btnModeDailyEl) {
     btnModeDailyEl.addEventListener('click', (e) => {
       if (e.target.closest('#btn-lobby-daily-diff')) return;
+      playButtonClick();
       enterDailyChallengeMode();
     });
     btnModeDailyEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         if (e.target.closest('#btn-lobby-daily-diff')) return;
         e.preventDefault();
+        playButtonClick();
         enterDailyChallengeMode();
       }
     });
@@ -1162,6 +1176,7 @@ async function bootstrap() {
   if (btnLobbyDiffEl) {
     btnLobbyDiffEl.addEventListener('click', (e) => {
       e.stopPropagation();
+      playButtonClick();
       if (lobbyDiffDrawerEl) {
         lobbyDiffDrawerEl.hidden = !lobbyDiffDrawerEl.hidden;
       }
@@ -1175,6 +1190,7 @@ async function bootstrap() {
     lobbyDiffDrawerEl.addEventListener('click', (e) => {
       const btn = e.target.closest('.drawer-diff-btn');
       if (!btn || !btn.dataset.diff) return;
+      playButtonClick();
       gameState.selectedDifficultyMode = btn.dataset.diff;
       syncLobbyDifficultyUI();
       lobbyDiffDrawerEl.hidden = true;
@@ -1185,12 +1201,14 @@ async function bootstrap() {
     btnModeInfiniteEl.addEventListener('click', (e) => {
       // 우측 난이도 배지를 누른 경우는 제외
       if (e.target.closest('#btn-lobby-diff')) return;
+      playButtonClick();
       enterInfiniteMode();
     });
     btnModeInfiniteEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         if (e.target.closest('#btn-lobby-diff')) return;
         e.preventDefault();
+        playButtonClick();
         enterInfiniteMode();
       }
     });
@@ -1428,17 +1446,29 @@ async function bootstrap() {
   if (btnSfxToggleLobbyEl) btnSfxToggleLobbyEl.addEventListener('click', handleToggleSFX);
   if (btnSfxToggleGameEl) btnSfxToggleGameEl.addEventListener('click', handleToggleSFX);
 
-  // 모바일/브라우저 첫 인터랙션 시 Web Audio API 언락 및 BGM 시작 (Autoplay 정책 대응)
-  const handleFirstAudioUnlock = () => {
+  // 모바일/브라우저 인터랙션 시 Web Audio API 언락 및 BGM 시작 (Autoplay 정책 대응)
+  const cleanupAudioUnlockListeners = () => {
+    window.removeEventListener('pointerdown', handleAudioUnlock);
+    window.removeEventListener('touchstart', handleAudioUnlock);
+    window.removeEventListener('click', handleAudioUnlock);
+    window.removeEventListener('keydown', handleAudioUnlock);
+  };
+
+  const handleAudioUnlock = () => {
     unlockAudio();
     if (!isBGMMuted()) {
       startBGM();
     }
-    window.removeEventListener('pointerdown', handleFirstAudioUnlock);
-    window.removeEventListener('keydown', handleFirstAudioUnlock);
+    // BGM이 성공적으로 활성화되었거나 음소거 상태인 경우 리스너 완전 해제
+    if (isBGMActive() || isBGMMuted()) {
+      cleanupAudioUnlockListeners();
+    }
   };
-  window.addEventListener('pointerdown', handleFirstAudioUnlock, { passive: true });
-  window.addEventListener('keydown', handleFirstAudioUnlock, { passive: true });
+
+  window.addEventListener('pointerdown', handleAudioUnlock, { passive: true });
+  window.addEventListener('touchstart', handleAudioUnlock, { passive: true });
+  window.addEventListener('click', handleAudioUnlock, { passive: true });
+  window.addEventListener('keydown', handleAudioUnlock, { passive: true });
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);
