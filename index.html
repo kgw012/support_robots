@@ -106,10 +106,21 @@
         </svg>
 
         <div class="lobby-hero-overlay">
-          <span class="lobby-sector-tag">
-            <span class="beacon-dot"></span>
-            UNDERGROUND SECTOR B-16 · SEISMIC ALERT
-          </span>
+          <div class="lobby-hero-header">
+            <span class="lobby-sector-tag">
+              <span class="beacon-dot"></span>
+              UNDERGROUND SECTOR B-16 · SEISMIC ALERT
+            </span>
+            <button
+              type="button"
+              id="btn-sound-toggle-lobby"
+              class="sound-toggle-btn"
+              title="효과음 켜기/끄기"
+              aria-label="효과음 켜기/끄기"
+            >
+              <span class="sound-icon">🔊</span>
+            </button>
+          </div>
           <h1 class="lobby-title">SUPPORT ROBOTS</h1>
           <p class="lobby-subtitle">서포트 로봇 : 무너지는 지하 폐기장 구조 작전</p>
         </div>
@@ -396,6 +407,15 @@
             <h1 id="hud-mode-title" class="game-title">무한 모드</h1>
           </button>
           <div class="hud-top-actions">
+            <button
+              type="button"
+              id="btn-sound-toggle-game"
+              class="top-next-btn sound-toggle-btn"
+              title="효과음 켜기/끄기"
+              aria-label="효과음 켜기/끄기"
+            >
+              <span class="sound-icon">🔊</span>
+            </button>
             <button
               type="button"
               id="btn-change-difficulty"
