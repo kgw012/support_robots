@@ -32,6 +32,7 @@ import {
   logoutUser,
   submitDailyChallengeRecord,
   fetchDailyLeaderboard,
+  fetchDailyHistoryLeaderboard,
   fetchInfiniteLeaderboard,
   addInfiniteModeScore,
   INFINITE_DIFF_POINTS,
@@ -98,6 +99,7 @@ const leaderboardDateSubEl = document.getElementById('leaderboard-date-subtitle'
 const leaderboardModeTabsEl = document.getElementById('leaderboard-mode-tabs');
 const leaderboardDiffTabsEl = document.getElementById('leaderboard-diff-tabs');
 const leaderboardBodyEl = document.getElementById('leaderboard-body');
+const btnLeaderboardHistoryEl = document.getElementById('btn-leaderboard-history');
 const btnLeaderboardCloseEl = document.getElementById('btn-leaderboard-close');
 const btnLeaderboardCloseTopEl = document.getElementById('btn-leaderboard-close-top');
 
@@ -156,6 +158,7 @@ let lobbyToastTimer = null;
 let sessionStageSeq = 0;
 let activeLeaderboardMode = 'daily';
 let activeLeaderboardDiff = 'normal';
+let isDailyHistoryView = false;
 
 /**
  * Vercel Web Analytics가 SPA 내 화면 전환 및 스테이지 진행을 감지해
@@ -433,14 +436,21 @@ function escapeHTML(str) {
     .replace(/"/g, '&quot;');
 }
 
-async function openLeaderboardModal(
-  diffId = gameState.dailyDifficultyMode || 'normal',
-  mode = activeLeaderboardMode
-) {
-  if (!leaderboardModalEl || !leaderboardBodyEl) return;
-  activeLeaderboardMode = mode === 'infinite' ? 'infinite' : 'daily';
-  activeLeaderboardDiff = diffId || activeLeaderboardDiff || 'normal';
+function formatHistoryDate(dateSeed) {
+  if (!dateSeed) return '-';
+  const str = String(dateSeed);
+  if (str.length === 8) {
+    const mm = str.slice(4, 6);
+    const dd = str.slice(6, 8);
+    return `${mm}/${dd}`;
+  }
+  return str;
+}
 
+async function renderCurrentLeaderboard() {
+  if (!leaderboardModalEl || !leaderboardBodyEl) return;
+
+  // 1) 모드 탭 활성화 상태 동기화
   if (leaderboardModeTabsEl) {
     const modeBtns = leaderboardModeTabsEl.querySelectorAll('[data-lb-mode]');
     modeBtns.forEach((btn) => {
@@ -448,11 +458,9 @@ async function openLeaderboardModal(
     });
   }
 
-  leaderboardBodyEl.innerHTML = `<p class="leaderboard-empty">순위 데이터를 불러오는 중...</p>`;
-  leaderboardModalEl.hidden = false;
-
-  // 1) 무한 모드 (누적 점수) 순위표
+  // 2) 무한 모드 (누적 점수) 순위표
   if (activeLeaderboardMode === 'infinite') {
+    if (btnLeaderboardHistoryEl) btnLeaderboardHistoryEl.hidden = true;
     if (leaderboardModalTitleEl) {
       leaderboardModalTitleEl.textContent = '🏆 무한 모드 순위표';
     }
@@ -463,6 +471,8 @@ async function openLeaderboardModal(
     if (leaderboardDiffTabsEl) {
       leaderboardDiffTabsEl.hidden = true;
     }
+
+    leaderboardBodyEl.innerHTML = `<p class="leaderboard-empty">순위 데이터를 불러오는 중...</p>`;
 
     try {
       const rows = await fetchInfiniteLeaderboard();
@@ -511,7 +521,77 @@ async function openLeaderboardModal(
     return;
   }
 
-  // 2) 일일 챌린지 순위표
+  // 3) 일일 챌린지 순위표 (지난 순위표 vs 오늘의 실시간 순위표)
+  if (btnLeaderboardHistoryEl) btnLeaderboardHistoryEl.hidden = false;
+  if (leaderboardDiffTabsEl) {
+    leaderboardDiffTabsEl.hidden = false;
+    const btns = leaderboardDiffTabsEl.querySelectorAll('[data-lb-diff]');
+    btns.forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.lbDiff === activeLeaderboardDiff);
+    });
+  }
+
+  // 3-A) 지난 순위표 보기 (각 난이도별 최근 최대 10일 일자별 1위)
+  if (isDailyHistoryView) {
+    if (leaderboardModalTitleEl) {
+      leaderboardModalTitleEl.textContent = '🏆 지난 순위표 (명예의 전당)';
+    }
+    if (leaderboardDateSubEl) {
+      const diffLabel = DIFF_META[activeLeaderboardDiff]?.label || '';
+      leaderboardDateSubEl.textContent = `최근 10일간 ${diffLabel} 난이도 일자별 1위 명예의 전당`;
+    }
+    if (btnLeaderboardHistoryEl) {
+      btnLeaderboardHistoryEl.textContent = '⚡ 오늘의 실시간 순위표 보기';
+      btnLeaderboardHistoryEl.classList.add('is-active-view');
+    }
+
+    leaderboardBodyEl.innerHTML = `<p class="leaderboard-empty">지난 1위 기록을 불러오는 중...</p>`;
+
+    try {
+      const rows = await fetchDailyHistoryLeaderboard(activeLeaderboardDiff);
+      if (!rows || rows.length === 0) {
+        leaderboardBodyEl.innerHTML = `
+          <p class="leaderboard-empty">
+            아직 <strong>${DIFF_META[activeLeaderboardDiff]?.label || ''}</strong> 난이도의 지난 1위 기록이 없습니다.<br/>
+            오늘의 첫 번째 1위 주인공이 되어 보세요!
+          </p>
+        `;
+        return;
+      }
+
+      const myId = authState.user?.id;
+      const headerHTML = `
+        <div class="lb-header-row is-history">
+          <span>날짜</span>
+          <span>최우수 대원명</span>
+          <span class="lb-time">달성시각</span>
+        </div>
+      `;
+
+      const rowsHTML = rows
+        .slice(0, 10)
+        .map((r) => {
+          const isMe = myId && r.user_id === myId;
+          const formattedDate = formatHistoryDate(r.date_seed);
+          const formattedTime = formatSubmittedTime(r.submitted_at);
+          return `
+            <div class="lb-row is-history ${isMe ? 'is-me' : ''}">
+              <span class="lb-date">${formattedDate}</span>
+              <span class="lb-nick">🏆 ${escapeHTML(r.nickname)}${isMe ? ' (나)' : ''}</span>
+              <span class="lb-time">${formattedTime}</span>
+            </div>
+          `;
+        })
+        .join('');
+
+      leaderboardBodyEl.innerHTML = headerHTML + rowsHTML;
+    } catch (err) {
+      leaderboardBodyEl.innerHTML = `<p class="leaderboard-empty">지난 순위표를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>`;
+    }
+    return;
+  }
+
+  // 3-B) 오늘의 실시간 순위표
   const todayInfo = getTodayKSTDateSeed();
   const dateSeed = gameState.dateSeed || todayInfo.seed;
 
@@ -521,13 +601,12 @@ async function openLeaderboardModal(
   if (leaderboardDateSubEl) {
     leaderboardDateSubEl.textContent = `${todayInfo.formatted} (KST) · 1순위 최소이동 / 2순위 최다완충 / 3순위 선착순`;
   }
-  if (leaderboardDiffTabsEl) {
-    leaderboardDiffTabsEl.hidden = false;
-    const btns = leaderboardDiffTabsEl.querySelectorAll('[data-lb-diff]');
-    btns.forEach((btn) => {
-      btn.classList.toggle('is-active', btn.dataset.lbDiff === activeLeaderboardDiff);
-    });
+  if (btnLeaderboardHistoryEl) {
+    btnLeaderboardHistoryEl.textContent = '📅 지난 순위표 보기';
+    btnLeaderboardHistoryEl.classList.remove('is-active-view');
   }
+
+  leaderboardBodyEl.innerHTML = `<p class="leaderboard-empty">순위 데이터를 불러오는 중...</p>`;
 
   try {
     const rows = await fetchDailyLeaderboard(dateSeed, activeLeaderboardDiff);
@@ -577,6 +656,22 @@ async function openLeaderboardModal(
   } catch (err) {
     leaderboardBodyEl.innerHTML = `<p class="leaderboard-empty">순위표를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>`;
   }
+}
+
+async function openLeaderboardModal(
+  diffId = gameState.dailyDifficultyMode || 'normal',
+  mode = activeLeaderboardMode,
+  resetHistoryView = true
+) {
+  if (!leaderboardModalEl || !leaderboardBodyEl) return;
+  activeLeaderboardMode = mode === 'infinite' ? 'infinite' : 'daily';
+  activeLeaderboardDiff = diffId || activeLeaderboardDiff || 'normal';
+  if (resetHistoryView) {
+    isDailyHistoryView = false;
+  }
+
+  leaderboardModalEl.hidden = false;
+  await renderCurrentLeaderboard();
 }
 
 /**
@@ -704,12 +799,17 @@ function handleMoveDirection(direction) {
   const evaluation = evaluateRoundStatus(gameState, robotColor);
   if (evaluation.status === 'CLEARED') {
     gameState.isCleared = true;
-    const solverFeedback = buildSolverFeedback(
-      gameState.moveCount,
-      gameState.collisionCount,
-      gameState.minMoves,
-      gameState.maxCollisions
-    );
+    // 일일 챌린지는 PvP 경쟁 모드이므로 솔버 최적해 스포일러(이동/완충 추가 개선 여부)를 비공개 처리
+    // 무한 모드는 컴퓨터 최적해 도전(PvE) 모드이므로 솔버 피드백 유지
+    const isDaily = gameState.gameMode === 'daily';
+    const solverFeedback = isDaily
+      ? null
+      : buildSolverFeedback(
+          gameState.moveCount,
+          gameState.collisionCount,
+          gameState.minMoves,
+          gameState.maxCollisions
+        );
     const bestRecordInfo = updateBestRecord(
       gameState.moveCount,
       gameState.collisionCount
@@ -1000,17 +1100,24 @@ function bootstrap() {
   // 리더보드 모달 이벤트 바인딩
   const closeLeaderboardModal = () => {
     if (leaderboardModalEl) leaderboardModalEl.hidden = true;
+    isDailyHistoryView = false;
   };
 
   if (btnLobbyLeaderboardEl) {
     btnLobbyLeaderboardEl.addEventListener('click', () => {
-      openLeaderboardModal(gameState.dailyDifficultyMode || 'normal', 'daily');
+      openLeaderboardModal(gameState.dailyDifficultyMode || 'normal', 'daily', true);
     });
   }
   if (btnOpenLeaderboardEl) {
     btnOpenLeaderboardEl.addEventListener('click', () => {
       const targetMode = gameState.gameMode === 'infinite' ? 'infinite' : 'daily';
-      openLeaderboardModal(gameState.dailyDifficultyMode || 'normal', targetMode);
+      openLeaderboardModal(gameState.dailyDifficultyMode || 'normal', targetMode, true);
+    });
+  }
+  if (btnLeaderboardHistoryEl) {
+    btnLeaderboardHistoryEl.addEventListener('click', () => {
+      isDailyHistoryView = !isDailyHistoryView;
+      renderCurrentLeaderboard();
     });
   }
   if (btnLeaderboardCloseEl) {
@@ -1030,14 +1137,17 @@ function bootstrap() {
     leaderboardModeTabsEl.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-lb-mode]');
       if (!btn || !btn.dataset.lbMode) return;
-      openLeaderboardModal(activeLeaderboardDiff, btn.dataset.lbMode);
+      activeLeaderboardMode = btn.dataset.lbMode;
+      isDailyHistoryView = false;
+      renderCurrentLeaderboard();
     });
   }
   if (leaderboardDiffTabsEl) {
     leaderboardDiffTabsEl.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-lb-diff]');
       if (!btn || !btn.dataset.lbDiff) return;
-      openLeaderboardModal(btn.dataset.lbDiff, 'daily');
+      activeLeaderboardDiff = btn.dataset.lbDiff;
+      renderCurrentLeaderboard();
     });
   }
 

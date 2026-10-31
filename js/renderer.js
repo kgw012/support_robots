@@ -281,6 +281,10 @@ export function renderRuleFeedback(evaluation, solverFeedback = null, bestRecord
   if (!evaluation || evaluation.status === 'NONE') {
     if (toastEl) toastEl.hidden = true;
     if (clearOverlayEl) clearOverlayEl.hidden = true;
+    if (clearSolverFeedbackEl) {
+      clearSolverFeedbackEl.hidden = true;
+      clearSolverFeedbackEl.textContent = '';
+    }
     return;
   }
 
@@ -298,11 +302,18 @@ export function renderRuleFeedback(evaluation, solverFeedback = null, bestRecord
     if (clearSummaryEl) {
       clearSummaryEl.innerHTML = `이번 기록: <strong>${evaluation.moveCount}회</strong> 이동 · 로봇 완충 <strong>${evaluation.collisionCount}회</strong>`;
     }
-    if (clearSolverFeedbackEl && solverFeedback) {
-      clearSolverFeedbackEl.textContent = solverFeedback.feedbackMessage;
-      clearSolverFeedbackEl.className = `clear-solver-feedback ${
-        solverFeedback.isOptimal ? 'is-optimal' : 'is-suboptimal'
-      }`;
+    if (clearSolverFeedbackEl) {
+      if (solverFeedback && solverFeedback.feedbackMessage) {
+        clearSolverFeedbackEl.textContent = solverFeedback.feedbackMessage;
+        clearSolverFeedbackEl.className = `clear-solver-feedback ${
+          solverFeedback.isOptimal ? 'is-optimal' : 'is-suboptimal'
+        }`;
+        clearSolverFeedbackEl.hidden = false;
+      } else {
+        clearSolverFeedbackEl.textContent = '';
+        clearSolverFeedbackEl.className = 'clear-solver-feedback';
+        clearSolverFeedbackEl.hidden = true;
+      }
     }
     if (clearBestRecordEl && bestRecordInfo && bestRecordInfo.bestRecord) {
       const { moveCount, collisionCount } = bestRecordInfo.bestRecord;

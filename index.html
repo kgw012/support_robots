@@ -488,7 +488,7 @@
           <div class="clear-card">
             <h2 class="clear-title">구조 성공!</h2>
             <p id="clear-summary" class="clear-summary"></p>
-            <p id="clear-solver-feedback" class="clear-solver-feedback"></p>
+            <p id="clear-solver-feedback" class="clear-solver-feedback" hidden></p>
             <p id="clear-mode-reward" class="clear-mode-reward" hidden></p>
             <p id="clear-best-record" class="clear-best-record"></p>
             <div class="clear-actions">
@@ -593,6 +593,14 @@
         <div id="leaderboard-body" class="leaderboard-body">
           <p class="leaderboard-empty">순위 데이터를 불러오는 중...</p>
         </div>
+
+        <button
+          type="button"
+          id="btn-leaderboard-history"
+          class="leaderboard-history-btn"
+        >
+          📅 지난 순위표 보기
+        </button>
 
         <button type="button" id="btn-leaderboard-close" class="clear-btn primary howto-confirm-btn">닫기</button>
       </div>
