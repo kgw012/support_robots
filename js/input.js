@@ -67,25 +67,34 @@ export function bindInputEvents(
   }
 
   // 1. 모바일 터치 이벤트 (touchstart / touchmove / touchend)
-  // passive: false를 유지하여 터치 이동 시 브라우저가 네이티브 뒤로가기 제스처를 시작하지 못하도록 제어권을 확보합니다.
-  boardEl.addEventListener(
+  // 보드판 내부뿐만 아니라, 보드 좌우의 바깥 패딩면에서 시작된 드래그도 완벽히 수용하여
+  // 브라우저 뒤로가기 제스처를 원천 차단하고 선택된 로봇을 정상 이동시킵니다.
+  window.addEventListener(
     'touchstart',
     (e) => {
       if (!e.touches || e.touches.length === 0) return;
-      const touch = e.touches[0];
-      startX = touch.clientX;
-      startY = touch.clientY;
+      if (!boardEl || boardEl.offsetParent === null) return; // 인게임 화면이 아닐 때는 무시
 
-      // 로봇 위에서 터치를 시작했다면 해당 로봇을 즉시 선택 상태로 전환
-      const touchedRobotColor = extractRobotColorFromTarget(e.target);
-      if (touchedRobotColor && typeof onSelectRobot === 'function') {
-        onSelectRobot(touchedRobotColor);
+      const touch = e.touches[0];
+      const rect = boardEl.getBoundingClientRect();
+
+      // 터치 Y좌표가 보드의 상하 높이 범위(상하 12px 여백 포함) 안에 있다면
+      // 보드 안쪽이든, 보드 좌우 패딩면이든 무조건 스와이프 조작 시작점으로 캡처
+      if (touch.clientY >= rect.top - 12 && touch.clientY <= rect.bottom + 12) {
+        startX = touch.clientX;
+        startY = touch.clientY;
+
+        // 로봇 위에서 터치를 시작했다면 해당 로봇을 즉시 선택 상태로 전환
+        const touchedRobotColor = extractRobotColorFromTarget(e.target);
+        if (touchedRobotColor && typeof onSelectRobot === 'function') {
+          onSelectRobot(touchedRobotColor);
+        }
       }
     },
     { passive: false }
   );
 
-  // 보드판 위 및 보드에서 시작된 드래그 중에는 브라우저 뒤로가기 및 스크롤을 즉시 차단
+  // 보드 높이 영역(보드 + 패딩면)에서 시작된 드래그 중에는 브라우저 뒤로가기 및 스크롤을 즉시 차단
   const handleTouchMove = (e) => {
     if (startX !== null && e.cancelable) {
       e.preventDefault();
@@ -95,7 +104,7 @@ export function bindInputEvents(
   boardEl.addEventListener('touchmove', handleTouchMove, { passive: false });
   window.addEventListener('touchmove', handleTouchMove, { passive: false });
 
-  // 손가락이 보드 밖으로 살짝 벗어나더라도 정상적으로 미끄러짐 이동을 완료할 수 있도록 window에 바인딩
+  // 손가락을 뗐을 때 스와이프 방향 계산 및 로봇 이동 실행
   window.addEventListener(
     'touchend',
     (e) => {

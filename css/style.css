@@ -68,6 +68,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  touch-action: none; /* 보드 좌우 패딩면에서도 브라우저 뒤로가기 제스처가 발동하지 않도록 터치 격리 */
 }
 
 /* 메인 로비 화면 (지하 폐기장 제어 콘솔 테마) */
