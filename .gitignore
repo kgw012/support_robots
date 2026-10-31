@@ -1,5 +1,8 @@
 .DS_Store
 node_modules/
+dist/
+.vercel/
 .env
 .env.*
+GEMINI.md
 en-ricochet_robot-rules.pdf
