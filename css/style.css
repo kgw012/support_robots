@@ -1546,4 +1546,22 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+@media (max-width: 440px) {
+  .lb-row,
+  .lb-header-row {
+    grid-template-columns: 46px 1fr 48px 48px;
+    gap: 4px;
+    padding: 7px 6px;
+  }
+
+  .lb-time {
+    display: none !important;
+  }
+
+  .lb-header-row.is-infinite,
+  .lb-row.is-infinite {
+    grid-template-columns: 46px 1fr 80px;
+  }
+}
+
 
