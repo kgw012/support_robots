@@ -10,24 +10,120 @@
   <main class="app-shell">
     <!-- 인트로 메인 로비 화면 (세계관 설명 + 모드 선택) -->
     <section id="lobby-screen" class="lobby-screen" aria-label="메인 로비">
-      <div class="lobby-header">
-        <span class="lobby-sector-tag">UNDERGROUND SECTOR B-16 · EMERGENCY</span>
-        <h1 class="lobby-title">SUPPORT ROBOTS</h1>
-        <p class="lobby-subtitle">서포트 로봇 : 무너지는 지하 폐기장 구조 작전</p>
+      <!-- 지하 폐기장 콘셉트 비주얼 배너 -->
+      <div class="lobby-hero-banner">
+        <div class="hazard-stripe-bar" aria-hidden="true"></div>
+        <svg
+          class="lobby-hero-svg"
+          viewBox="0 0 480 170"
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="bgShaft" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#0b1017" />
+              <stop offset="60%" stop-color="#131c27" />
+              <stop offset="100%" stop-color="#1b2531" />
+            </linearGradient>
+            <radialGradient id="beaconGlow" cx="0.82" cy="0.22" r="0.45">
+              <stop offset="0%" stop-color="rgba(239, 68, 68, 0.38)" />
+              <stop offset="100%" stop-color="rgba(239, 68, 68, 0)" />
+            </radialGradient>
+            <radialGradient id="portalGlow" cx="0.22" cy="0.68" r="0.32">
+              <stop offset="0%" stop-color="rgba(56, 189, 248, 0.32)" />
+              <stop offset="100%" stop-color="rgba(56, 189, 248, 0)" />
+            </radialGradient>
+          </defs>
+          <!-- 배경 및 조명 -->
+          <rect width="480" height="170" fill="url(#bgShaft)" />
+          <rect width="480" height="170" fill="url(#beaconGlow)" />
+          <rect width="480" height="170" fill="url(#portalGlow)" />
+
+          <!-- 지하 격자 바닥 원근선 -->
+          <g stroke="rgba(148, 163, 184, 0.14)" stroke-width="1">
+            <line x1="0" y1="95" x2="480" y2="95" />
+            <line x1="0" y1="115" x2="480" y2="115" />
+            <line x1="0" y1="138" x2="480" y2="138" />
+            <line x1="0" y1="164" x2="480" y2="164" />
+            <line x1="80" y1="95" x2="20" y2="170" />
+            <line x1="160" y1="95" x2="125" y2="170" />
+            <line x1="240" y1="95" x2="240" y2="170" />
+            <line x1="320" y1="95" x2="355" y2="170" />
+            <line x1="400" y1="95" x2="460" y2="170" />
+          </g>
+
+          <!-- 무너지는 천장 철골 및 균열 -->
+          <path d="M0 0 L480 0 L480 28 L420 42 L340 22 L210 38 L110 20 L0 36 Z" fill="#090d12" />
+          <path d="M125 22 L142 54 L132 76" fill="none" stroke="rgba(248, 113, 113, 0.45)" stroke-width="1.5" stroke-dasharray="3 3" />
+          <path d="M352 25 L338 58 L348 84" fill="none" stroke="rgba(251, 191, 36, 0.4)" stroke-width="1.5" stroke-dasharray="3 3" />
+
+          <!-- 탈출구(Target Zone) 홀로그램 심볼 -->
+          <g transform="translate(105, 126)">
+            <ellipse cx="0" cy="0" rx="26" ry="11" fill="rgba(56, 189, 248, 0.18)" stroke="#38bdf8" stroke-width="1.5" />
+            <polygon points="0,-10 12,0 0,10 -12,0" fill="none" stroke="#e0f2fe" stroke-width="1.6" />
+          </g>
+
+          <!-- 로봇 슬라이딩 궤적 및 동료 로봇 간 유압 완충(Shock Absorber) 파동 -->
+          <line x1="370" y1="126" x2="255" y2="126" stroke="#60a5fa" stroke-width="2.5" stroke-dasharray="5 4" opacity="0.75" />
+          <line x1="236" y1="126" x2="118" y2="126" stroke="#4ade80" stroke-width="2.5" stroke-dasharray="5 4" opacity="0.85" />
+
+          <!-- 완충 흡수 링 이펙트 -->
+          <circle cx="242" cy="126" r="18" fill="none" stroke="#fbbf24" stroke-width="1.8" stroke-dasharray="4 3" opacity="0.9" />
+          <circle cx="242" cy="126" r="25" fill="none" stroke="rgba(251, 191, 36, 0.4)" stroke-width="1.2" />
+
+          <!-- 서포트 로봇 4기 (파랑, 빨강, 노랑, 초록) -->
+          <circle cx="228" cy="126" r="10" fill="#e53935" stroke="#ffffff" stroke-width="2" />
+          <circle cx="254" cy="126" r="10" fill="#1e88e5" stroke="#ffffff" stroke-width="2" />
+          <circle cx="328" cy="108" r="8.5" fill="#f5b400" stroke="#ffffff" stroke-width="1.8" opacity="0.9" />
+          <circle cx="164" cy="106" r="8.5" fill="#2e9e49" stroke="#ffffff" stroke-width="1.8" opacity="0.9" />
+        </svg>
+
+        <div class="lobby-hero-overlay">
+          <span class="lobby-sector-tag">
+            <span class="beacon-dot"></span>
+            UNDERGROUND SECTOR B-16 · SEISMIC ALERT
+          </span>
+          <h1 class="lobby-title">SUPPORT ROBOTS</h1>
+          <p class="lobby-subtitle">서포트 로봇 : 무너지는 지하 폐기장 구조 작전</p>
+        </div>
       </div>
 
+      <!-- 세계관 브리핑 (기본 접힘 · 클릭 시 펼쳐보기) -->
       <article class="lobby-lore-card">
-        <h2 class="lobby-lore-title">작전 브리핑 · 지반 진동과 충격 흡수 제어</h2>
-        <p class="lobby-lore-text">
-          원인 불명의 시스템 에러로 지하 로봇 폐기장이 전면 붕괴하기 시작했습니다.
-          격리되어 있던 로봇들은 자세 제어 장치와 마찰력을 상실해, 한 번 미끄러지면
-          <strong>벽이나 다른 로봇에 부딪히기 전까지 스스로 멈출 수 없는 상태</strong>입니다.
-        </p>
-        <p class="lobby-lore-text">
-          단단한 외벽에 충돌하면 지반 진동이 가속되지만,
-          <strong>동료 로봇에 부딪혀 멈추면 내장된 유압식 충격 흡수 장치(완충)가 작동해 충격파를 완벽히 흡수·분산</strong>합니다.
-          <strong>최소 이동 횟수(1순위)</strong>와 <strong>최다 로봇 간 완충 충돌(2순위)</strong>로 고장 난 로봇을 탈출구까지 가이드하세요!
-        </p>
+        <button
+          type="button"
+          id="btn-lore-toggle"
+          class="lobby-lore-toggle"
+          aria-expanded="false"
+          aria-controls="lobby-lore-body"
+        >
+          <div class="lore-toggle-head">
+            <span class="lobby-lore-title">작전 브리핑 · 지하 폐기장 붕괴와 완충 제어</span>
+            <span class="lobby-lore-preview">제동력을 잃은 로봇들을 동료 로봇과의 완충 충돌로 안전하게 유도하세요.</span>
+          </div>
+          <span id="lore-toggle-badge" class="lore-toggle-badge">펼쳐보기 ▾</span>
+        </button>
+
+        <div id="lobby-lore-body" class="lobby-lore-body" hidden>
+          <p class="lobby-lore-line">
+            버려진 로봇 공장의 지하 깊은 곳, 원인 불명의 시스템 에러로 폐기장 시설이 전면 붕괴하기 시작했습니다.
+          </p>
+          <p class="lobby-lore-line">
+            그 충격으로 격리되어 있던 로봇들은 자세 제어 장치와 마찰력을 상실했습니다.
+          </p>
+          <p class="lobby-lore-line">
+            한 번 미끄러지면 <strong>벽이나 다른 로봇에 부딪히기 전까지는 스스로 멈출 수 없는 상태</strong>입니다.
+          </p>
+          <p class="lobby-lore-line">
+            지하 지반은 현재 충격에 극도로 취약하여, 단단한 콘크리트 외벽에 충돌할 때마다 위험한 진동이 발생해 붕괴가 가속됩니다.
+          </p>
+          <p class="lobby-lore-line">
+            반면 <strong>다른 동료 로봇에 부딪혀 멈추면, 로봇에 내장된 유압식 충격 흡수 장치(완충)가 작동해 지반으로 가해지는 충격파를 완벽히 흡수·분산</strong>시킵니다.
+          </p>
+          <p class="lobby-lore-line">
+            지반이 완전히 무너지기 전에 서포트 로봇들의 원격 제어권을 잡고, 불필요한 기동과 외벽 충돌을 줄여 고장 난 로봇들을 안전한 탈출구까지 가이드하세요!
+          </p>
+        </div>
       </article>
 
       <div class="lobby-mode-list">

@@ -27,6 +27,9 @@ import { buildSolverFeedback } from './solver.js';
 
 const lobbyScreenEl = document.getElementById('lobby-screen');
 const gameScreenEl = document.getElementById('game-screen');
+const btnLoreToggleEl = document.getElementById('btn-lore-toggle');
+const lobbyLoreBodyEl = document.getElementById('lobby-lore-body');
+const loreToggleBadgeEl = document.getElementById('lore-toggle-badge');
 const btnModeDailyEl = document.getElementById('btn-mode-daily');
 const btnModeInfiniteEl = document.getElementById('btn-mode-infinite');
 const btnLobbyDiffEl = document.getElementById('btn-lobby-diff');
@@ -337,6 +340,17 @@ function bootstrap() {
   });
 
   // 1. 메인 로비 이벤트 바인딩
+  if (btnLoreToggleEl && lobbyLoreBodyEl) {
+    btnLoreToggleEl.addEventListener('click', () => {
+      const isCurrentlyHidden = lobbyLoreBodyEl.hidden;
+      lobbyLoreBodyEl.hidden = !isCurrentlyHidden;
+      btnLoreToggleEl.setAttribute('aria-expanded', String(isCurrentlyHidden));
+      if (loreToggleBadgeEl) {
+        loreToggleBadgeEl.textContent = isCurrentlyHidden ? '접기 ▴' : '펼쳐보기 ▾';
+      }
+    });
+  }
+
   if (btnModeDailyEl) {
     btnModeDailyEl.addEventListener('click', () => {
       showLobbyToast('🚧 일일 챌린지는 현재 개발 중입니다! 곧 오픈됩니다. (Coming Soon)');
