@@ -105,6 +105,8 @@ const btnResetEl = document.getElementById('btn-reset');
 const btnSkipStageEl = document.getElementById('btn-skip-stage');
 const btnClearRetryEl = document.getElementById('btn-clear-retry');
 const btnClearNextEl = document.getElementById('btn-clear-next');
+const btnClearShareEl = document.getElementById('btn-clear-share');
+const btnClearShareTextEl = document.getElementById('btn-clear-share-text');
 const clearModeRewardEl = document.getElementById('clear-mode-reward');
 const clearOverlayEl = document.getElementById('clear-overlay');
 
@@ -380,6 +382,13 @@ function syncInGameHeaderByMode() {
   }
   if (btnClearNextEl) {
     btnClearNextEl.textContent = isDaily ? '🏆 순위표 보기' : '다음 문제';
+  }
+  if (btnClearShareEl) {
+    btnClearShareEl.hidden = !isDaily;
+    btnClearShareEl.classList.remove('copied');
+  }
+  if (btnClearShareTextEl) {
+    btnClearShareTextEl.textContent = '기록 공유하기';
   }
 }
 
@@ -796,6 +805,90 @@ async function handleModeClearSubmission(solverFeedback) {
   }
 }
 
+let shareFeedbackTimer = null;
+
+function showShareFeedback(message) {
+  if (!btnClearShareEl || !btnClearShareTextEl) return;
+  if (shareFeedbackTimer) clearTimeout(shareFeedbackTimer);
+
+  btnClearShareEl.classList.add('copied');
+  btnClearShareTextEl.textContent = message;
+
+  shareFeedbackTimer = setTimeout(() => {
+    if (btnClearShareEl) btnClearShareEl.classList.remove('copied');
+    if (btnClearShareTextEl) btnClearShareTextEl.textContent = '기록 공유하기';
+  }, 2500);
+}
+
+/**
+ * 일일 챌린지 클리어 기록 공유 (Web Share API 및 클립보드 복사 Fallback)
+ */
+async function handleShareDailyRecord() {
+  playButtonClick();
+
+  const dateSeed = gameState.dateSeed || getTodayKSTDateSeed().seed;
+  const dateFormatted = formatHistoryDate(dateSeed);
+  const diffKey = gameState.dailyDifficultyMode || 'normal';
+  const diffLabel = DIFF_META[diffKey]?.label || diffKey.toUpperCase();
+
+  const origin = (typeof window !== 'undefined' && window.location && window.location.origin)
+    ? window.location.origin
+    : 'https://supportrobots.vercel.app';
+  const shareUrl = `${origin}/?mode=daily&diff=${diffKey}&seed=${dateSeed}`;
+
+  const shareTitle = `🤖 서포트 로봇 일일 챌린지 (${dateFormatted} ${diffLabel})`;
+  const shareText = `🤖 서포트 로봇 일일 챌린지 (${dateFormatted} ${diffLabel})\n🎯 ${gameState.moveCount}회 이동 · 완충 ${gameState.collisionCount}회로 구조 성공!\n${shareUrl}`;
+
+  // 1) 모바일 Web Share API 시도
+  if (typeof navigator !== 'undefined' && navigator.share) {
+    try {
+      await navigator.share({
+        title: shareTitle,
+        text: shareText,
+        url: shareUrl,
+      });
+      showShareFeedback('✅ 공유 완료!');
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        // 사용자가 네이티브 공유창을 닫은 경우 피드백 없이 종료
+        return;
+      }
+      // 권한 오류나 미지원 시 클립보드 복사로 fallback 진행
+    }
+  }
+
+  // 2) 클립보드 복사 Fallback
+  let copied = false;
+  if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      copied = true;
+    } catch (_) {}
+  }
+
+  if (!copied && typeof document !== 'undefined') {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = shareText;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      copied = document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (_) {}
+  }
+
+  if (copied) {
+    showShareFeedback('✅ 클립보드 복사 완료!');
+  } else {
+    showShareFeedback('⚠️ 복사 실패 (직접 복사해 주세요)');
+  }
+}
+
 /**
  * 조작할 로봇 색상을 변경합니다.
  * @param {string} color 'red' | 'green' | 'blue' | 'yellow'
@@ -864,6 +957,14 @@ function handleMoveDirection(direction) {
     // 일일 챌린지는 PvP 경쟁 모드이므로 솔버 최적해 스포일러(이동/완충 추가 개선 여부)를 비공개 처리
     // 무한 모드는 컴퓨터 최적해 도전(PvE) 모드이므로 솔버 피드백 유지
     const isDaily = gameState.gameMode === 'daily';
+    if (btnClearShareEl) {
+      btnClearShareEl.hidden = !isDaily;
+      btnClearShareEl.classList.remove('copied');
+    }
+    if (btnClearShareTextEl) {
+      btnClearShareTextEl.textContent = '기록 공유하기';
+    }
+
     const solverFeedback = isDaily
       ? null
       : buildSolverFeedback(
@@ -953,6 +1054,24 @@ function renderAll() {
  * 초기 실행
  */
 function bootstrap() {
+  // 공유 링크 및 URL 파라미터 확인 (?mode=daily&diff=...)
+  try {
+    if (typeof window !== 'undefined' && window.location) {
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get('mode');
+      const diff = params.get('diff');
+      if (mode === 'daily') {
+        if (diff && DIFF_META[diff]) {
+          gameState.dailyDifficultyMode = diff;
+        }
+      } else if (mode === 'infinite') {
+        if (diff && DIFF_META[diff]) {
+          gameState.selectedDifficultyMode = diff;
+        }
+      }
+    }
+  } catch (_) {}
+
   syncLobbyDifficultyUI();
   syncAuthUI();
   syncSoundUI();
@@ -1242,6 +1361,9 @@ function bootstrap() {
   }
   if (btnClearRetryEl) {
     btnClearRetryEl.addEventListener('click', handleReset);
+  }
+  if (btnClearShareEl) {
+    btnClearShareEl.addEventListener('click', handleShareDailyRecord);
   }
   if (btnClearNextEl) {
     btnClearNextEl.addEventListener('click', () => {

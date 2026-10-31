@@ -535,9 +535,30 @@
             <p id="clear-solver-feedback" class="clear-solver-feedback" hidden></p>
             <p id="clear-mode-reward" class="clear-mode-reward" hidden></p>
             <p id="clear-best-record" class="clear-best-record"></p>
-            <div class="clear-actions">
-              <button type="button" id="btn-clear-retry" class="clear-btn secondary">다시 도전</button>
-              <button type="button" id="btn-clear-next" class="clear-btn primary">다음 문제</button>
+            <div class="clear-actions-column">
+              <button
+                type="button"
+                id="btn-clear-share"
+                class="clear-btn share-btn"
+                title="일일 챌린지 기록 공유하기"
+                hidden
+              >
+                <svg viewBox="0 0 24 24" class="icon-svg-sm" aria-hidden="true">
+                  <path
+                    d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span id="btn-clear-share-text">기록 공유하기</span>
+              </button>
+              <div class="clear-actions">
+                <button type="button" id="btn-clear-retry" class="clear-btn secondary">다시 도전</button>
+                <button type="button" id="btn-clear-next" class="clear-btn primary">다음 문제</button>
+              </div>
             </div>
           </div>
         </div>
