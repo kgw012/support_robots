@@ -32,7 +32,9 @@
 
 html,
 body {
-  overscroll-behavior-x: none; /* iOS Safari 및 Android 브라우저 화면 가장자리 스와이프 뒤로가기 제스처 방어 */
+  overscroll-behavior: none;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -45,6 +47,7 @@ body {
   align-items: center;
   padding: 12px;
   user-select: none;
+  touch-action: pan-y;
 }
 
 .app-shell {

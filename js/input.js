@@ -66,7 +66,7 @@ export function bindInputEvents(
     return robotEl ? robotEl.dataset.color : null;
   }
 
-  // 1. 모바일 터치 이벤트 (touchstart / touchend)
+  // 1. 모바일 터치 이벤트 (touchstart / touchmove / touchend)
   boardEl.addEventListener(
     'touchstart',
     (e) => {
@@ -81,7 +81,18 @@ export function bindInputEvents(
         onSelectRobot(touchedRobotColor);
       }
     },
-    { passive: true }
+    { passive: false }
+  );
+
+  boardEl.addEventListener(
+    'touchmove',
+    (e) => {
+      // 보드판 위에서 손가락을 미끄러뜨리는 중에는 브라우저/카카오톡 엣지 스와이프 뒤로가기 및 스크롤을 원천 차단
+      if (startX !== null && e.cancelable) {
+        e.preventDefault();
+      }
+    },
+    { passive: false }
   );
 
   boardEl.addEventListener(
@@ -99,10 +110,13 @@ export function bindInputEvents(
 
       const direction = resolveSwipeDirection(dx, dy);
       if (direction && typeof onMoveDirection === 'function') {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
         onMoveDirection(direction);
       }
     },
-    { passive: true }
+    { passive: false }
   );
 
   // 2. 데스크톱 마우스 드래그 지원 (mousedown / mouseup)
