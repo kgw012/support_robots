@@ -29,6 +29,8 @@ import {
   unlockAudio,
   isMuted,
   toggleMute,
+  startBGM,
+  stopBGM,
   playRobotSelect,
   playSlide,
   playWallHit,
@@ -1307,9 +1309,12 @@ function bootstrap() {
     btnSoundToggleGameEl.addEventListener('click', handleToggleSound);
   }
 
-  // 모바일/브라우저 첫 인터랙션 시 Web Audio API 언락 (Autoplay 정책 대응)
+  // 모바일/브라우저 첫 인터랙션 시 Web Audio API 언락 및 BGM 시작 (Autoplay 정책 대응)
   const handleFirstAudioUnlock = () => {
     unlockAudio();
+    if (!isMuted()) {
+      startBGM();
+    }
     window.removeEventListener('pointerdown', handleFirstAudioUnlock);
     window.removeEventListener('keydown', handleFirstAudioUnlock);
   };

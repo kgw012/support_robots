@@ -388,34 +388,36 @@
       <!-- 상단 정보 표시줄 (HUD) -->
       <header class="hud-header">
         <div class="hud-top-row">
-          <button
-            type="button"
-            id="btn-back-lobby"
-            class="title-home-btn"
-            title="메인 로비로 돌아가기"
-          >
-            <svg viewBox="0 0 24 24" class="icon-svg-sm" aria-hidden="true">
-              <path
-                d="M15 18l-6-6 6-6"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <h1 id="hud-mode-title" class="game-title">무한 모드</h1>
-          </button>
-          <div class="hud-top-actions">
+          <div class="hud-title-group">
+            <button
+              type="button"
+              id="btn-back-lobby"
+              class="title-home-btn"
+              title="메인 로비로 돌아가기"
+            >
+              <svg viewBox="0 0 24 24" class="icon-svg-sm" aria-hidden="true">
+                <path
+                  d="M15 18l-6-6 6-6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <h1 id="hud-mode-title" class="game-title">무한 모드</h1>
+            </button>
             <button
               type="button"
               id="btn-sound-toggle-game"
-              class="top-next-btn sound-toggle-btn"
-              title="효과음 켜기/끄기"
-              aria-label="효과음 켜기/끄기"
+              class="sound-toggle-btn"
+              title="사운드 켜기/끄기"
+              aria-label="사운드 켜기/끄기"
             >
               <span class="sound-icon">🔊</span>
             </button>
+          </div>
+          <div class="hud-top-actions">
             <button
               type="button"
               id="btn-change-difficulty"

@@ -10,6 +10,12 @@ let audioCtx = null;
 let noiseBuffer = null;
 let isMutedState = false;
 
+// BGM 신디사이저 엔진 상태
+let bgmRunning = false;
+let bgmMasterGain = null;
+let bgmNodes = [];
+let bgmPulseTimer = null;
+
 // 로컬 스토리지에서 음소거 설정 복원
 try {
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -45,12 +51,20 @@ function createNoiseBuffer() {
 }
 
 /**
- * 모바일(iOS Safari/카카오 인앱) 오디오 자동재생 제한 해제
+ * 모바일(iOS Safari/카카오 인앱) 오디오 자동재생 제한 해제 및 BGM 자동 시작
  */
 export function unlockAudio() {
   const ctx = getAudioContext();
-  if (ctx && ctx.state === 'suspended') {
-    ctx.resume().catch(() => {});
+  if (ctx) {
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        if (!isMutedState && !bgmRunning) {
+          startBGM();
+        }
+      }).catch(() => {});
+    } else if (ctx.state === 'running' && !isMutedState && !bgmRunning) {
+      startBGM();
+    }
   }
 }
 
@@ -63,7 +77,7 @@ export function isMuted() {
 }
 
 /**
- * 음소거 상태 토글
+ * 음소거 상태 토글 (SFX + BGM 동시 제어)
  * @returns {boolean} 변경된 음소거 상태
  */
 export function toggleMute() {
@@ -73,7 +87,159 @@ export function toggleMute() {
       window.localStorage.setItem(STORAGE_KEY_MUTED, isMutedState ? '1' : '0');
     }
   } catch (_) {}
+
+  if (isMutedState) {
+    stopBGM(0.4);
+  } else {
+    startBGM();
+  }
+
   return isMutedState;
+}
+
+/**
+ * 절차적 사이버펑크 앰비언트 BGM 시작
+ * - 지하 폐기장의 붕괴 진동과 유압 제어 긴장감을 자아내는 0KB 실시간 신디사이저 루프
+ */
+export function startBGM() {
+  if (isMutedState || bgmRunning) return;
+  const ctx = getAudioContext();
+  if (!ctx || ctx.state !== 'running') return;
+
+  try {
+    const now = ctx.currentTime;
+
+    // 마스터 BGM 게인 (1.5초 부드러운 페이드인)
+    bgmMasterGain = ctx.createGain();
+    bgmMasterGain.gain.setValueAtTime(0.001, now);
+    bgmMasterGain.gain.linearRampToValueAtTime(0.045, now + 1.5);
+    bgmMasterGain.connect(ctx.destination);
+
+    bgmNodes = [];
+
+    // --- 레이어 1: 딥 서브 베이스 드론 (Deep Sub-Bass Drone 43.65Hz) ---
+    const oscDrone1 = ctx.createOscillator();
+    const oscDrone2 = ctx.createOscillator();
+    const filterDrone = ctx.createBiquadFilter();
+    const gainDrone = ctx.createGain();
+
+    oscDrone1.type = 'triangle';
+    oscDrone1.frequency.setValueAtTime(43.65, now); // F1
+    oscDrone2.type = 'sine';
+    oscDrone2.frequency.setValueAtTime(87.3, now); // F2 (옥타브 배음)
+
+    filterDrone.type = 'lowpass';
+    filterDrone.frequency.setValueAtTime(120, now);
+
+    gainDrone.gain.setValueAtTime(0.35, now);
+
+    oscDrone1.connect(filterDrone);
+    oscDrone2.connect(filterDrone);
+    filterDrone.connect(gainDrone);
+    gainDrone.connect(bgmMasterGain);
+
+    oscDrone1.start(now);
+    oscDrone2.start(now);
+    bgmNodes.push(oscDrone1, oscDrone2, filterDrone, gainDrone);
+
+    // --- 레이어 2: 숨쉬는 아날로그 신스 패드 (Breathing Synth Pad with LFO) ---
+    const padFreqs = [174.61, 261.63, 349.23]; // F3, C4, F4 (F minor chord tones)
+    const filterPad = ctx.createBiquadFilter();
+    filterPad.type = 'lowpass';
+    filterPad.frequency.setValueAtTime(550, now);
+    filterPad.Q.setValueAtTime(2.5, now);
+
+    // LFO: 0.08Hz (약 12.5초 주기) 필터 스윕으로 서서히 호흡하는 앰비언스 생성
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(0.08, now);
+    lfoGain.gain.setValueAtTime(260, now); // 550Hz ± 260Hz 스윕 (290Hz ~ 810Hz)
+    lfo.connect(lfoGain);
+    lfoGain.connect(filterPad.frequency);
+    lfo.start(now);
+    bgmNodes.push(lfo, lfoGain);
+
+    const gainPad = ctx.createGain();
+    gainPad.gain.setValueAtTime(0.18, now);
+    filterPad.connect(gainPad);
+    gainPad.connect(bgmMasterGain);
+    bgmNodes.push(filterPad, gainPad);
+
+    padFreqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(freq, now);
+      // 아날로그 신스 코러스 효과를 위한 미세 디튠
+      osc.detune.setValueAtTime((idx - 1) * 6, now);
+      osc.connect(filterPad);
+      osc.start(now);
+      bgmNodes.push(osc);
+    });
+
+    // --- 레이어 3: 미니멀 심장박동/지반 유압 펄스 (1.6초 주기) ---
+    const playPulse = () => {
+      if (!bgmRunning || isMutedState || !audioCtx || audioCtx.state !== 'running') return;
+      try {
+        const pNow = audioCtx.currentTime;
+        const pOsc = audioCtx.createOscillator();
+        const pGain = audioCtx.createGain();
+
+        pOsc.type = 'triangle';
+        pOsc.frequency.setValueAtTime(75, pNow);
+        pOsc.frequency.exponentialRampToValueAtTime(28, pNow + 0.16);
+
+        pGain.gain.setValueAtTime(0.18, pNow);
+        pGain.gain.exponentialRampToValueAtTime(0.001, pNow + 0.16);
+
+        pOsc.connect(pGain);
+        pGain.connect(bgmMasterGain);
+
+        pOsc.start(pNow);
+        pOsc.stop(pNow + 0.16);
+      } catch (_) {}
+    };
+
+    bgmPulseTimer = setInterval(playPulse, 1600);
+    bgmRunning = true;
+  } catch (_) {
+    bgmRunning = false;
+  }
+}
+
+/**
+ * BGM 정지 (페이드아웃 지원)
+ * @param {number} [fadeTime=0.4] 페이드아웃 지속 시간 (초)
+ */
+export function stopBGM(fadeTime = 0.4) {
+  if (!bgmRunning) return;
+  bgmRunning = false;
+
+  if (bgmPulseTimer) {
+    clearInterval(bgmPulseTimer);
+    bgmPulseTimer = null;
+  }
+
+  if (bgmMasterGain && audioCtx) {
+    try {
+      const now = audioCtx.currentTime;
+      bgmMasterGain.gain.setValueAtTime(bgmMasterGain.gain.value, now);
+      bgmMasterGain.gain.linearRampToValueAtTime(0.001, now + fadeTime);
+      setTimeout(() => {
+        bgmNodes.forEach((node) => {
+          try {
+            if (node.stop) node.stop();
+            if (node.disconnect) node.disconnect();
+          } catch (_) {}
+        });
+        bgmNodes = [];
+        if (bgmMasterGain) {
+          try { bgmMasterGain.disconnect(); } catch (_) {}
+          bgmMasterGain = null;
+        }
+      }, fadeTime * 1000 + 50);
+    } catch (_) {}
+  }
 }
 
 /**

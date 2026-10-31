@@ -82,6 +82,8 @@ const MANGLE_IDENTIFIERS = [
   'unlockAudio',
   'isMuted',
   'toggleMute',
+  'startBGM',
+  'stopBGM',
   'playRobotSelect',
   'playSlide',
   'playWallHit',
