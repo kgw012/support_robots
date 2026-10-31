@@ -392,18 +392,17 @@ function returnToLobby(fromPopState = false) {
 }
 
 /**
- * 퍼즐 진행 중(이동 1회 이상)일 때 로비 이동 확인 모달을 열거나,
- * 진행 전/클리어 상태라면 즉시 로비로 이동합니다.
+ * 인게임 상태에서 뒤로가기 발생 시 (이동 0회라도 게임 중이면) 확인 모달을 표시합니다.
  * @param {'popstate' | 'backButton'} source
  */
 function requestLeaveToLobby(source = 'backButton') {
-  const isPlaying = !gameState.isCleared && gameState.moveCount > 0;
-  if (!isPlaying) {
-    returnToLobby(source === 'popstate');
-    return;
-  }
+  // 이미 로비에 있다면 무시
+  if (gameScreenEl && gameScreenEl.hidden) return;
 
-  // 브라우저 뒤로가기(popstate)로 인한 진입인 경우, 사용자가 취소할 때를 대비해 히스토리를 1단계 복구
+  // 이미 모달이 열려있다면 중복 방지
+  if (leaveConfirmModalEl && !leaveConfirmModalEl.hidden) return;
+
+  // 브라우저/카카오톡 뒤로가기(popstate)로 인한 진입인 경우, 취소 시 게임을 유지하도록 히스토리를 1단계 복구
   if (source === 'popstate') {
     trackAnalyticsView(gameState.gameMode || 'infinite', true);
   }
