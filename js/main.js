@@ -178,29 +178,20 @@ const HUD_INFO_CONTENT = Object.freeze({
 
 let activePopoverType = null;
 let lobbyToastTimer = null;
-let sessionStageSeq = 0;
 let activeLeaderboardMode = 'daily';
 let activeLeaderboardDiff = 'normal';
 let isDailyHistoryView = false;
 
 /**
- * Vercel Web Analytics가 SPA 내 화면 전환 및 스테이지 진행을 감지해
- * 활성 접속자(online) 상태를 유지하도록 URL 히스토리 및 라우트 신호를 갱신합니다.
+ * SPA 네비게이션 가상 뷰 추적 및 히스토리 관리
+ * URL에 불필요한 쿼리 파라미터를 남기지 않고 깔끔한 메인 URL(/)을 유지합니다.
  * @param {'lobby' | 'infinite' | 'daily'} viewMode
  * @param {boolean} [pushEntry=false]
  */
 function trackAnalyticsView(viewMode, pushEntry = false) {
   if (typeof window === 'undefined' || !window.history) return;
   try {
-    let nextUrl = '/';
-    if (viewMode === 'infinite') {
-      sessionStageSeq += 1;
-      const diff = gameState.selectedDifficultyMode || 'normal';
-      nextUrl = `/?mode=infinite&diff=${diff}&s=${sessionStageSeq}`;
-    } else if (viewMode === 'daily') {
-      const diff = gameState.dailyDifficultyMode || 'normal';
-      nextUrl = `/?mode=daily&diff=${diff}`;
-    }
+    const nextUrl = '/';
     if (pushEntry) {
       window.history.pushState({ viewMode }, '', nextUrl);
     } else {
@@ -424,7 +415,7 @@ function enterDailyChallengeMode() {
   });
   syncInGameHeaderByMode();
   renderAll();
-  trackAnalyticsView('daily', true);
+  trackAnalyticsView('daily', false);
 }
 
 function returnToLobby(fromPopState = false) {
@@ -741,6 +732,12 @@ async function handleModeClearSubmission(solverFeedback) {
   if (!clearModeRewardEl) return;
 
   if (gameState.gameMode === 'daily') {
+    if (!authState.isLoggedIn) {
+      clearModeRewardEl.hidden = false;
+      clearModeRewardEl.textContent = '💡 구조 성공! 로비에서 대원 로그인 시 일일 순위표에 기록됩니다.';
+      return;
+    }
+
     clearModeRewardEl.hidden = false;
     clearModeRewardEl.textContent = '📡 일일 챌린지 기록을 서버에 자동 제출 중...';
     try {
@@ -831,9 +828,9 @@ async function handleShareDailyRecord() {
   const origin = (typeof window !== 'undefined' && window.location && window.location.origin)
     ? window.location.origin
     : 'https://supportrobots.vercel.app';
-  const shareUrl = `${origin}/?mode=daily&diff=${diffKey}`;
+  const shareUrl = origin;
 
-  // 링크 포함 정확히 3줄로 완성된 단일 공유 텍스트
+  // 파라미터 없는 메인 URL을 포함하여 정확히 3줄로 완성된 단일 공유 텍스트
   const fullShareText = `🤖 서포트 로봇 일일 챌린지 [${diffLabel}]\n🎯 ${gameState.moveCount}회 이동 · 완충 ${gameState.collisionCount}회로 구조 성공!\n${shareUrl}`;
 
   // 1) 모바일 Web Share API 시도
@@ -1052,33 +1049,14 @@ function renderAll() {
 /**
  * 초기 실행
  */
-function bootstrap() {
-  // 공유 링크 및 URL 파라미터 확인 (?mode=daily&diff=...)
-  try {
-    if (typeof window !== 'undefined' && window.location) {
-      const params = new URLSearchParams(window.location.search);
-      const mode = params.get('mode');
-      const diff = params.get('diff');
-      if (mode === 'daily') {
-        if (diff && DIFF_META[diff]) {
-          gameState.dailyDifficultyMode = diff;
-        }
-      } else if (mode === 'infinite') {
-        if (diff && DIFF_META[diff]) {
-          gameState.selectedDifficultyMode = diff;
-        }
-      }
-    }
-  } catch (_) {}
-
+async function bootstrap() {
   syncLobbyDifficultyUI();
   syncAuthUI();
   syncSoundUI();
 
-  // 로컬스토리지 로그인 세션 복원
-  restoreAuthSession().then(() => {
-    syncAuthUI();
-  });
+  // 로컬스토리지 로그인 세션 비동기 복원
+  await restoreAuthSession();
+  syncAuthUI();
 
   // 로비에 머무는 동안 백그라운드에서 난이도별 후보맵 바구니를 미리 채워둠
   scheduleBackgroundRefill(3);
