@@ -135,6 +135,8 @@ const btnClearShareEl = document.getElementById('btn-clear-share');
 const btnClearShareTextEl = document.getElementById('btn-clear-share-text');
 const clearModeRewardEl = document.getElementById('clear-mode-reward');
 const clearOverlayEl = document.getElementById('clear-overlay');
+const btnClearCloseEl = document.getElementById('btn-clear-close');
+const btnReopenClearEl = document.getElementById('btn-reopen-clear');
 
 const hudTargetBadgeEl = document.getElementById('hud-target-badge');
 const hudDifficultyBadgeEl = document.getElementById('hud-difficulty-badge');
@@ -1248,6 +1250,9 @@ function handleMoveDirection(direction) {
   const evaluation = evaluateRoundStatus(gameState, robotColor);
   if (evaluation.status === 'CLEARED') {
     gameState.isCleared = true;
+    if (boardWrapperEl) boardWrapperEl.classList.add('is-cleared');
+    if (robotsLayerEl) robotsLayerEl.classList.add('is-cleared');
+    if (btnReopenClearEl) btnReopenClearEl.hidden = true;
     setTimeout(() => playClear(), 100);
     if (tutorialGestureLayerEl) tutorialGestureLayerEl.hidden = true;
 
@@ -1374,6 +1379,9 @@ function handleUndo() {
 
   if (undoLastMove()) {
     playUndo();
+    if (boardWrapperEl) boardWrapperEl.classList.remove('is-cleared');
+    if (robotsLayerEl) robotsLayerEl.classList.remove('is-cleared');
+    if (btnReopenClearEl) btnReopenClearEl.hidden = true;
     updateRobotPositions(robotsLayerEl, gameState);
     renderHUD(gameState);
     renderRuleFeedback({ status: 'NONE' });
@@ -1402,6 +1410,9 @@ function handleReset() {
 
   if (resetCurrentRound()) {
     playUndo();
+    if (boardWrapperEl) boardWrapperEl.classList.remove('is-cleared');
+    if (robotsLayerEl) robotsLayerEl.classList.remove('is-cleared');
+    if (btnReopenClearEl) btnReopenClearEl.hidden = true;
     updateRobotPositions(robotsLayerEl, gameState);
     renderHUD(gameState);
     renderRuleFeedback({ status: 'NONE' });
@@ -1443,6 +1454,15 @@ function handleNextStage(targetDifficulty = gameState.selectedDifficultyMode) {
 function renderAll() {
   if (clearModeRewardEl) {
     clearModeRewardEl.hidden = true;
+  }
+  if (boardWrapperEl) {
+    boardWrapperEl.classList.remove('is-cleared');
+  }
+  if (robotsLayerEl) {
+    robotsLayerEl.classList.remove('is-cleared');
+  }
+  if (btnReopenClearEl) {
+    btnReopenClearEl.hidden = true;
   }
   syncBoardPixelSize(boardWrapperEl);
   renderBoardGrid(boardGridEl, gameState);
@@ -1827,6 +1847,49 @@ async function bootstrap() {
       }
     });
   }
+
+  // 성공 결과창(clear-overlay) 닫기 및 보드 확인 모드 / 다시 열기
+  const handleCloseClearOverlay = () => {
+    playButtonClick();
+    if (clearOverlayEl) {
+      clearOverlayEl.hidden = true;
+    }
+    if (gameState.isCleared && btnReopenClearEl) {
+      btnReopenClearEl.hidden = false;
+    }
+  };
+
+  const handleReopenClearOverlay = () => {
+    playButtonClick();
+    if (clearOverlayEl) {
+      clearOverlayEl.hidden = false;
+    }
+    if (btnReopenClearEl) {
+      btnReopenClearEl.hidden = true;
+    }
+  };
+
+  if (btnClearCloseEl) {
+    btnClearCloseEl.addEventListener('click', handleCloseClearOverlay);
+  }
+
+  if (btnReopenClearEl) {
+    btnReopenClearEl.addEventListener('click', handleReopenClearOverlay);
+  }
+
+  if (clearOverlayEl) {
+    clearOverlayEl.addEventListener('click', (e) => {
+      if (e.target === clearOverlayEl) {
+        handleCloseClearOverlay();
+      }
+    });
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && clearOverlayEl && !clearOverlayEl.hidden) {
+      handleCloseClearOverlay();
+    }
+  });
 
   if (hudInfoPopoverEl) {
     hudInfoPopoverEl.addEventListener('click', (e) => {

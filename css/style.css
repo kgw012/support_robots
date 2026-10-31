@@ -1311,6 +1311,25 @@ button.mode-guide-badge:active {
   overflow: hidden;
 }
 
+/* 클리어 완료 상태: 보드와 로봇을 흐릿하고 차분하게 처리하여 조작 불가(비활성화) 상태를 직관적으로 전달 */
+.board-wrapper.is-cleared .board-grid,
+.board-wrapper.is-cleared .robots-layer {
+  opacity: 0.52;
+  filter: brightness(0.78) saturate(0.8);
+  pointer-events: none !important;
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+
+.board-wrapper.is-cleared .robots-layer .robot-piece {
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+.board-wrapper.is-cleared .robots-layer .robot-piece.is-selected::after {
+  animation: none !important;
+  opacity: 0.25;
+}
+
 /* 16x16 CSS Grid (.robots-layer와 완전히 동일한 inset: 0 절대 좌표계 공유) */
 .board-grid {
   position: absolute;
@@ -1439,6 +1458,21 @@ button.mode-guide-badge:active {
   inset: 0;
   z-index: 5;
   pointer-events: none;
+}
+
+/* 클리어 상태: 로봇 조작 비활성화 및 펄스 정지 */
+.robots-layer.is-cleared {
+  pointer-events: none !important;
+}
+
+.robots-layer.is-cleared .robot-piece {
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+.robots-layer.is-cleared .robot-piece.is-selected::after {
+  animation: none !important;
+  opacity: 0.35;
 }
 
 /* 로봇 초기 위치 사각 마커 (Position Marker) */
@@ -1589,10 +1623,11 @@ button.mode-guide-badge:active {
 }
 
 .clear-card {
+  position: relative;
   background: var(--bg-panel);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
-  padding: 22px 20px;
+  padding: 24px 20px 20px;
   width: 100%;
   max-width: 310px;
   text-align: center;
@@ -1600,6 +1635,72 @@ button.mode-guide-badge:active {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.clear-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+
+.clear-close-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.clear-close-btn:active {
+  transform: scale(0.92);
+}
+
+/* 보드판 위 결과창 다시보기 플로팅 칩 */
+.btn-reopen-clear {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(16, 185, 129, 0.92);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.btn-reopen-clear:hover {
+  background: #10b981;
+  transform: translateX(-50%) scale(1.04);
+}
+
+.btn-reopen-clear:active {
+  transform: translateX(-50%) scale(0.96);
+}
+
+.btn-reopen-clear[hidden] {
+  display: none !important;
 }
 
 .clear-title {

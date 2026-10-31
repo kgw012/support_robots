@@ -147,7 +147,7 @@
                 충격으로 격리되어 있던 로봇들은 자세 제어 장치와 마찰력을 상실하여, 한 번 미끄러지면 벽이나 다른 로봇에 부딪히기 전까지는 스스로 멈출 수 없는 유압 제어 불능 상태에 빠졌습니다.
               </p>
               <p class="lobby-lore-line">
-                지반은 충격에 극도로 취약하여 콘크리트 외벽에 충돌할 때마다 붕괴가 가속되지만, <strong>동료 로봇에 부딪히면 유압식 완충 장치가 작동해 지반 충격을 완벽히 흡수·분산</strong>합니다.
+                지반은 충격에 극도로 취약하여 콘크리트 외벽에 충돌할 때마다 붕괴가 가속되지만, <strong>동료 로봇에 부딪히면 완충 효과로 인해 지반 충격을 최소화</strong>합니다.
               </p>
               <p class="lobby-lore-line">
                 원격 서포트 로봇들의 제어권을 잡고, 외벽 충돌을 줄이고 동료 완충을 적극 활용하여 고장 난 로봇들을 안전한 탈출구로 인도하세요!
@@ -541,6 +541,15 @@
         <div id="rule-toast" class="rule-toast" hidden></div>
         <div id="clear-overlay" class="clear-overlay" hidden>
           <div class="clear-card">
+            <button
+              type="button"
+              id="btn-clear-close"
+              class="clear-close-btn"
+              title="결과창 닫기 (보드판 확인)"
+              aria-label="결과창 닫기"
+            >
+              ✕
+            </button>
             <h2 class="clear-title">구조 성공!</h2>
             <p id="clear-summary" class="clear-summary"></p>
             <p id="clear-solver-feedback" class="clear-solver-feedback" hidden></p>
@@ -573,6 +582,16 @@
             </div>
           </div>
         </div>
+        <button
+          type="button"
+          id="btn-reopen-clear"
+          class="btn-reopen-clear"
+          hidden
+          title="성공 결과창 다시 열기"
+          aria-label="성공 결과창 다시 열기"
+        >
+          🏆 결과창 다시보기
+        </button>
       </section>
 
       <!-- 하단 모바일 엄지 조작 영역 (좌: 처음부터 / 우: 되돌리기) -->
