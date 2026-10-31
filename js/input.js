@@ -32,14 +32,26 @@ export function resolveSwipeDirection(dx, dy) {
 }
 
 /**
- * 보드 컨테이너에 터치 스와이프, 마우스 드래그, 키보드 방향키 이벤트를 등록합니다.
+ * 보드 컨테이너에 터치 스와이프, 마우스 드래그, 키보드 조작 이벤트를 등록합니다.
+ *
+ * 키보드 조작:
+ * - 숫자키 1(빨강), 2(초록), 3(파랑), 4(노랑) 또는 Tab(순환): 로봇 선택
+ * - 방향키(↑, ↓, ←, →) 및 W, A, S, D: 선택된 로봇 미끄러짐 이동
+ * - Z 키 또는 Ctrl+Z: 마지막 이동 되돌리기(Undo)
+ * - R 키: 현재 라운드 처음부터 다시하기(Reset)
  *
  * @param {HTMLElement} boardEl 스와이프를 감지할 보드 래퍼 엘리먼트 (.board-wrapper)
  * @param {object} callbacks
  * @param {function(string): void} callbacks.onSelectRobot 로봇 선택 콜백 (color)
  * @param {function(string): void} callbacks.onMoveDirection 방향 이동 콜백 (direction)
+ * @param {function(): void} [callbacks.onUndo] 되돌리기 콜백
+ * @param {function(): void} [callbacks.onReset] 처음부터 다시하기 콜백
+ * @param {function(): string} [callbacks.getSelectedRobot] 현재 선택된 로봇 색상 반환 함수
  */
-export function bindInputEvents(boardEl, { onSelectRobot, onMoveDirection }) {
+export function bindInputEvents(
+  boardEl,
+  { onSelectRobot, onMoveDirection, onUndo, onReset, getSelectedRobot }
+) {
   if (!boardEl) return;
 
   let startX = null;
@@ -54,25 +66,46 @@ export function bindInputEvents(boardEl, { onSelectRobot, onMoveDirection }) {
     return robotEl ? robotEl.dataset.color : null;
   }
 
-  // 1. 모바일 터치 이벤트 (touchstart / touchend)
-  boardEl.addEventListener(
+  // 1. 모바일 터치 이벤트 (touchstart / touchmove / touchend)
+  // 보드판 내부뿐만 아니라, 보드 좌우의 바깥 패딩면에서 시작된 드래그도 완벽히 수용하여
+  // 브라우저 뒤로가기 제스처를 원천 차단하고 선택된 로봇을 정상 이동시킵니다.
+  window.addEventListener(
     'touchstart',
     (e) => {
       if (!e.touches || e.touches.length === 0) return;
-      const touch = e.touches[0];
-      startX = touch.clientX;
-      startY = touch.clientY;
+      if (!boardEl || boardEl.offsetParent === null) return; // 인게임 화면이 아닐 때는 무시
 
-      // 로봇 위에서 터치를 시작했다면 해당 로봇을 즉시 선택 상태로 전환
-      const touchedRobotColor = extractRobotColorFromTarget(e.target);
-      if (touchedRobotColor && typeof onSelectRobot === 'function') {
-        onSelectRobot(touchedRobotColor);
+      const touch = e.touches[0];
+      const rect = boardEl.getBoundingClientRect();
+
+      // 터치 Y좌표가 보드의 상하 높이 범위(상하 12px 여백 포함) 안에 있다면
+      // 보드 안쪽이든, 보드 좌우 패딩면이든 무조건 스와이프 조작 시작점으로 캡처
+      if (touch.clientY >= rect.top - 12 && touch.clientY <= rect.bottom + 12) {
+        startX = touch.clientX;
+        startY = touch.clientY;
+
+        // 로봇 위에서 터치를 시작했다면 해당 로봇을 즉시 선택 상태로 전환
+        const touchedRobotColor = extractRobotColorFromTarget(e.target);
+        if (touchedRobotColor && typeof onSelectRobot === 'function') {
+          onSelectRobot(touchedRobotColor);
+        }
       }
     },
-    { passive: true }
+    { passive: false }
   );
 
-  boardEl.addEventListener(
+  // 보드 높이 영역(보드 + 패딩면)에서 시작된 드래그 중에는 브라우저 뒤로가기 및 스크롤을 즉시 차단
+  const handleTouchMove = (e) => {
+    if (startX !== null && e.cancelable) {
+      e.preventDefault();
+    }
+  };
+
+  boardEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+  window.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+  // 손가락을 뗐을 때 스와이프 방향 계산 및 로봇 이동 실행
+  window.addEventListener(
     'touchend',
     (e) => {
       if (startX === null || startY === null) return;
@@ -87,10 +120,13 @@ export function bindInputEvents(boardEl, { onSelectRobot, onMoveDirection }) {
 
       const direction = resolveSwipeDirection(dx, dy);
       if (direction && typeof onMoveDirection === 'function') {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
         onMoveDirection(direction);
       }
     },
-    { passive: true }
+    { passive: false }
   );
 
   // 2. 데스크톱 마우스 드래그 지원 (mousedown / mouseup)
@@ -119,8 +155,69 @@ export function bindInputEvents(boardEl, { onSelectRobot, onMoveDirection }) {
     }
   });
 
-  // 3. 키보드 방향키 / WASD 지원 (데스크톱 테스트용)
+  // 3. 데스크톱 키보드 조작 지원
+  const ROBOT_CYCLE = ['red', 'green', 'blue', 'yellow'];
+
   window.addEventListener('keydown', (e) => {
+    // 인풋/텍스트에 포커스되어 타이핑 중일 때는 단축키 무시
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) {
+      return;
+    }
+
+    // 1) 로봇 선택: 숫자키 1, 2, 3, 4
+    if (e.code === 'Digit1' || e.key === '1') {
+      e.preventDefault();
+      if (typeof onSelectRobot === 'function') onSelectRobot('red');
+      return;
+    }
+    if (e.code === 'Digit2' || e.key === '2') {
+      e.preventDefault();
+      if (typeof onSelectRobot === 'function') onSelectRobot('green');
+      return;
+    }
+    if (e.code === 'Digit3' || e.key === '3') {
+      e.preventDefault();
+      if (typeof onSelectRobot === 'function') onSelectRobot('blue');
+      return;
+    }
+    if (e.code === 'Digit4' || e.key === '4') {
+      e.preventDefault();
+      if (typeof onSelectRobot === 'function') onSelectRobot('yellow');
+      return;
+    }
+
+    // 2) 로봇 순환 선택: Tab (Shift+Tab은 역순)
+    if (e.code === 'Tab') {
+      e.preventDefault();
+      const current = typeof getSelectedRobot === 'function' ? getSelectedRobot() : 'red';
+      const curIdx = ROBOT_CYCLE.indexOf(current);
+      const step = e.shiftKey ? -1 : 1;
+      const nextIdx = (curIdx + step + ROBOT_CYCLE.length) % ROBOT_CYCLE.length;
+      if (typeof onSelectRobot === 'function') {
+        onSelectRobot(ROBOT_CYCLE[nextIdx]);
+      }
+      return;
+    }
+
+    // 3) 되돌리기(Undo): Z 키 또는 Ctrl+Z / Cmd+Z
+    if (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z') {
+      e.preventDefault();
+      if (typeof onUndo === 'function') onUndo();
+      return;
+    }
+
+    // 4) 처음부터 다시하기(Reset): R 키
+    if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R') {
+      // Ctrl+R(브라우저 새로고침)은 방해하지 않음
+      if (!e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        if (typeof onReset === 'function') onReset();
+        return;
+      }
+    }
+
+    // 5) 방향키 및 WASD 이동
     const keyMap = {
       ArrowUp: DIRECTIONS.UP,
       KeyW: DIRECTIONS.UP,
