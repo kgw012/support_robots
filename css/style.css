@@ -63,7 +63,8 @@ body {
 .top-next-btn[hidden],
 .clear-mode-reward[hidden],
 .tutorial-guide-card[hidden],
-.tutorial-gesture-layer[hidden] {
+.tutorial-gesture-layer[hidden],
+.puzzle-loading-overlay[hidden] {
   display: none !important;
 }
 
@@ -1010,6 +1011,79 @@ button.mode-guide-badge:active {
   width: 100%;
   padding: 11px;
   font-size: 0.88rem;
+}
+
+/* 고난도/HELL 퍼즐 연산 및 맵 생성 로딩 오버레이 */
+.puzzle-loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 29, 0.82);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  touch-action: none;
+  animation: fadeInLoading 0.18s ease-out;
+}
+
+@keyframes fadeInLoading {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.puzzle-loading-overlay .loading-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  max-width: 320px;
+  width: 90%;
+  padding: 24px 20px;
+  background: linear-gradient(145deg, rgba(26, 32, 53, 0.94), rgba(15, 23, 42, 0.96));
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.7),
+    0 0 20px rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+}
+
+.puzzle-loading-overlay .loading-spinner-ring {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3.5px solid rgba(239, 68, 68, 0.2);
+  border-top-color: #ef4444;
+  border-right-color: #f59e0b;
+  animation: spinLoadingRing 0.8s linear infinite;
+}
+
+@keyframes spinLoadingRing {
+  to { transform: rotate(360deg); }
+}
+
+.puzzle-loading-overlay .loading-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.puzzle-loading-overlay .loading-title {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.puzzle-loading-overlay .loading-sub {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.4;
 }
 
 /* 상단 헤더 및 상태 표시줄 */

@@ -723,6 +723,24 @@
         </div>
       </div>
     </div>
+
+    <!-- 고난도/HELL 퍼즐 연산 및 맵 생성 로딩 오버레이 -->
+    <div
+      id="puzzle-loading-overlay"
+      class="puzzle-loading-overlay"
+      hidden
+      role="status"
+      aria-live="polite"
+      aria-label="퍼즐 분석 및 맵 생성 중"
+    >
+      <div class="loading-card">
+        <div class="loading-spinner-ring" aria-hidden="true"></div>
+        <div class="loading-text-group">
+          <div id="loading-title" class="loading-title">⚙️ 작전 구역 분석 중...</div>
+          <div id="loading-sub" class="loading-sub">최적의 완충 경로와 탈출로를 연산하고 있습니다</div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script type="module" src="./js/main.js"></script>
