@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Support Robots - 서포트 로봇</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <!-- 상단 정보 표시줄 (HUD) -->
+    <header class="hud-header">
+      <div class="hud-top-row">
+        <h1 class="game-title">SUPPORT ROBOTS</h1>
+        <button
+          type="button"
+          id="btn-skip-stage"
+          class="top-next-btn"
+          title="다음 문제로 넘기기"
+        >
+          <span>다음 문제</span>
+          <svg viewBox="0 0 24 24" class="icon-svg-sm" aria-hidden="true">
+            <path
+              d="M9 6l6 6-6 6"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+      <div class="hud-stats-row">
+        <div class="hud-goal-group">
+          <div id="hud-target-badge" class="target-badge">목표 로딩 중...</div>
+          <span id="hud-difficulty-badge" class="difficulty-badge">EASY</span>
+        </div>
+        <div class="stats-Counters">
+          <div class="stat-box" title="총 이동 횟수 (낮을수록 우수)">
+            <span>이동</span>
+            <strong id="hud-move-count">0</strong>
+          </div>
+          <div class="stat-box" title="로봇 간 완충 충돌 횟수 (높을수록 우수)">
+            <span>완충</span>
+            <strong id="hud-collision-count">0</strong>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 16x16 게임 보드 영역 -->
+    <section class="board-wrapper" aria-label="16x16 게임 보드">
+      <div id="board-grid" class="board-grid"></div>
+      <div id="robots-layer" class="robots-layer"></div>
+      <div id="rule-toast" class="rule-toast" hidden></div>
+      <div id="clear-overlay" class="clear-overlay" hidden>
+        <div class="clear-card">
+          <h2 class="clear-title">구조 성공!</h2>
+          <p id="clear-summary" class="clear-summary"></p>
+          <p id="clear-solver-feedback" class="clear-solver-feedback"></p>
+          <p id="clear-best-record" class="clear-best-record"></p>
+          <div class="clear-actions">
+            <button type="button" id="btn-clear-retry" class="clear-btn secondary">다시 도전</button>
+            <button type="button" id="btn-clear-next" class="clear-btn primary">다음 문제</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 하단 모바일 엄지 조작 영역 (좌: 처음부터 / 우: 되돌리기) -->
+    <footer class="bottom-action-bar">
+      <button
+        type="button"
+        id="btn-reset"
+        class="bottom-icon-btn"
+        title="처음부터 다시하기 (Reset)"
+        aria-label="처음부터 다시하기"
+        disabled
+      >
+        <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+          <path
+            d="M21 12a9 9 0 1 1-2.64-6.36L21 8"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M21 3v5h-5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>처음부터</span>
+      </button>
+      <button
+        type="button"
+        id="btn-undo"
+        class="bottom-icon-btn"
+        title="이전 동작 취소 (Undo)"
+        aria-label="이전 동작 취소"
+        disabled
+      >
+        <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+          <path
+            d="M9 14L4 9l5-5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>되돌리기</span>
+      </button>
+    </footer>
+  </main>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
+

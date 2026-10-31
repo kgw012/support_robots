@@ -1,0 +1,562 @@
+/**
+ * @file style.css
+ * @description Support Robots - 16x16 CSS Grid 보드 및 미니멀 로봇/타깃 스타일시트
+ */
+
+:root {
+  --bg-page: #0f141c;
+  --bg-panel: #18202c;
+  --bg-board: #d8d3c8;
+  --bg-cell-alt: #d2cdc1;
+  --cell-grid-line: rgba(90, 82, 70, 0.25);
+  --quadrant-seam-line: rgba(45, 40, 35, 0.45);
+  --wall-color: #22272e;
+
+  --color-red: #e53935;
+  --color-green: #2e9e49;
+  --color-blue: #1e88e5;
+  --color-yellow: #f5b400;
+  --color-multi: #9c27b0;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px;
+  user-select: none;
+}
+
+.app-shell {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 상단 헤더 및 상태 표시줄 */
+.hud-header {
+  background: var(--bg-panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.top-next-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.top-next-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+}
+
+.top-next-btn:active {
+  transform: scale(0.96);
+}
+
+.icon-svg-sm {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.icon-svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.hud-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hud-goal-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.difficulty-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.difficulty-badge.diff-easy {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+}
+
+.difficulty-badge.diff-hard {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.difficulty-badge.diff-hell {
+  background: rgba(239, 68, 68, 0.22);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.target-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.target-badge .target-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.target-badge small {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.stats-Counters {
+  display: flex;
+  gap: 10px;
+}
+
+.stat-box {
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-box strong {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+/* 16x16 보드 컨테이너 */
+.board-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: var(--bg-board);
+  border: 4px solid var(--wall-color);
+  border-radius: 6px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* 16x16 CSS Grid */
+.board-grid {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  grid-template-rows: repeat(16, 1fr);
+}
+
+.board-cell {
+  position: relative;
+  border-right: 1px solid var(--cell-grid-line);
+  border-bottom: 1px solid var(--cell-grid-line);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 타일 내부 사선 패턴 느낌의 미세한 장식 테두리 */
+.board-cell::before {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border: 1px solid rgba(110, 100, 86, 0.16);
+  pointer-events: none;
+}
+
+/* 8x8 사분면 경계선 미세 구분 */
+.board-cell.quadrant-seam-right {
+  border-right-color: var(--quadrant-seam-line);
+}
+.board-cell.quadrant-seam-bottom {
+  border-bottom-color: var(--quadrant-seam-line);
+}
+
+/* 중앙 2x2 폐쇄 구역 칸 */
+.board-cell.cell-closed {
+  background-color: var(--wall-color);
+}
+.board-cell.cell-closed::before {
+  display: none;
+}
+
+/* 비트마스크 벽 렌더링 (북:1, 동:2, 남:4, 서:8)
+   양방향 동기화가 되어 있으므로 각 칸의 안쪽(inset)에 두께를 주어 격자 크기가 틀어지지 않게 처리 */
+.board-cell.wall-n {
+  border-top: 2.5px solid var(--wall-color);
+}
+.board-cell.wall-e {
+  border-right: 2.5px solid var(--wall-color);
+}
+.board-cell.wall-s {
+  border-bottom: 2.5px solid var(--wall-color);
+}
+.board-cell.wall-w {
+  border-left: 2.5px solid var(--wall-color);
+}
+
+/* 타깃 심볼 마커 */
+.target-marker {
+  position: relative;
+  z-index: 1;
+  width: 82%;
+  height: 82%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 3px;
+  transition: transform 0.2s ease;
+}
+
+.target-marker.is-active-goal {
+  background: rgba(255, 255, 255, 0.35);
+  animation: goalPulse 1.6s infinite ease-in-out;
+}
+
+@keyframes goalPulse {
+  0%, 100% { transform: scale(0.96); }
+  50% { transform: scale(1.08); }
+}
+
+.target-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.color-red { color: var(--color-red); }
+.color-green { color: var(--color-green); }
+.color-blue { color: var(--color-blue); }
+.color-yellow { color: var(--color-yellow); }
+.color-multi { color: var(--color-multi); }
+
+/* 중앙 2x2 폐쇄 구역(7,7 ~ 8,8) 센터피스 오버레이 */
+.board-centerpiece {
+  position: absolute;
+  left: calc(7 * 6.25%);
+  top: calc(7 * 6.25%);
+  width: calc(2 * 6.25%);
+  height: calc(2 * 6.25%);
+  background: #1b2028;
+  border: 3px solid #11151a;
+  border-radius: 4px;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+.centerpiece-inner {
+  width: 72%;
+  height: 72%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.centerpiece-inner .target-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* 로봇 레이어 (position: absolute 기반) */
+.robots-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* 로봇 초기 위치 사각 마커 (Position Marker) */
+.robot-start-marker {
+  position: absolute;
+  width: 6.25%;
+  height: 6.25%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.robot-start-marker::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border: 2px dashed currentColor;
+  border-radius: 4px;
+  opacity: 0.55;
+}
+
+.marker-red { color: var(--color-red); }
+.marker-green { color: var(--color-green); }
+.marker-blue { color: var(--color-blue); }
+.marker-yellow { color: var(--color-yellow); }
+
+/* 로봇 말 (원형 색상 점 UI) */
+.robot-piece {
+  position: absolute;
+  width: 6.25%;
+  height: 6.25%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 6;
+  transition: left 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+              top 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.15s ease;
+}
+
+.robot-core {
+  width: 72%;
+  height: 72%;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55), inset 0 2px 3px rgba(255, 255, 255, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.robot-red .robot-core { background-color: var(--color-red); }
+.robot-green .robot-core { background-color: var(--color-green); }
+.robot-blue .robot-core { background-color: var(--color-blue); }
+.robot-yellow .robot-core { background-color: var(--color-yellow); }
+
+.robot-piece.is-selected {
+  z-index: 7;
+}
+
+.robot-piece.is-selected .robot-core {
+  transform: scale(1.14);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.85), 0 0 10px rgba(255, 255, 255, 0.9);
+}
+
+/* 규칙 안내 토스트 (직진 도달 무효 등) */
+.rule-toast {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  background: rgba(220, 38, 38, 0.94);
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  z-index: 15;
+  pointer-events: none;
+}
+
+/* 탈출 성공(Stage Clear) 오버레이 */
+.clear-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 20, 28, 0.78);
+  backdrop-filter: blur(3px);
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.clear-overlay[hidden],
+.rule-toast[hidden] {
+  display: none !important;
+}
+
+.clear-card {
+  background: var(--bg-panel);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 22px 20px;
+  width: 100%;
+  max-width: 310px;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.clear-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #4ade80;
+}
+
+.clear-summary {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.clear-solver-feedback {
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.clear-solver-feedback.is-optimal {
+  background: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.clear-solver-feedback.is-suboptimal {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.clear-best-record {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.clear-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.clear-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.clear-btn:active {
+  transform: scale(0.97);
+}
+
+.clear-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.clear-btn.primary {
+  background: #22c55e;
+  color: #052e16;
+}
+
+/* 하단 모바일 엄지 조작 영역 (되돌리기 / 처음부터) */
+.bottom-action-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.bottom-icon-btn {
+  height: 46px;
+  border-radius: var(--border-radius);
+  background: var(--bg-panel);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+}
+
+.bottom-icon-btn:hover:not(:disabled) {
+  background: #232f42;
+}
+
+.bottom-icon-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.bottom-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
