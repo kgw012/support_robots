@@ -472,6 +472,9 @@ function syncInGameHeaderByMode() {
   }
 
   // 상단 액션 버튼 제어
+  if (hudDifficultyBadgeEl) {
+    hudDifficultyBadgeEl.hidden = isTutorial;
+  }
   if (btnOpenLeaderboardEl) {
     btnOpenLeaderboardEl.hidden = isTutorial;
   }
@@ -553,14 +556,16 @@ function enterTutorialMode() {
     startBGM();
   }
 
-  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
-  if (gameScreenEl) gameScreenEl.hidden = false;
   if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
   if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
 
   resetTutorialProgress();
   const step = getCurrentTutorialStep();
   applyTutorialStep(step);
+
+  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+  if (gameScreenEl) gameScreenEl.hidden = false;
+
   trackAnalyticsView('tutorial', true);
 }
 
@@ -646,6 +651,21 @@ function returnToLobby(fromPopState = false) {
   if (tutorialGuideCardEl) {
     tutorialGuideCardEl.hidden = true;
     tutorialGuideCardEl.style.display = 'none';
+  }
+  if (boardWrapperEl) {
+    boardWrapperEl.classList.remove('is-cleared');
+  }
+  if (robotsLayerEl) {
+    robotsLayerEl.classList.remove('is-cleared');
+  }
+  if (btnReopenClearEl) {
+    btnReopenClearEl.hidden = true;
+  }
+  if (lobbyDiffDrawerEl) {
+    lobbyDiffDrawerEl.hidden = true;
+  }
+  if (lobbyDailyDiffDrawerEl) {
+    lobbyDailyDiffDrawerEl.hidden = true;
   }
   syncLobbyDifficultyUI();
   syncAuthUI();
