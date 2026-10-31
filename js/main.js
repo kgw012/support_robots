@@ -230,7 +230,12 @@ function updateTutorialStepCard() {
 function updateTutorialGestureGuide() {
   if (!tutorialGestureLayerEl || !tutorialFingerEl || !boardGridEl) return;
 
-  if (gameState.gameMode !== 'tutorial' || gameState.isCleared || isTutorialUndoLocked) {
+  if (
+    gameState.gameMode !== 'tutorial' ||
+    gameState.isCleared ||
+    isTutorialUndoLocked ||
+    (gameScreenEl && gameScreenEl.hidden)
+  ) {
     tutorialGestureLayerEl.hidden = true;
     return;
   }
@@ -251,7 +256,10 @@ function updateTutorialGestureGuide() {
   }
 
   const boardWidth = boardGridEl.clientWidth;
-  if (!boardWidth) return;
+  if (!boardWidth) {
+    requestAnimationFrame(updateTutorialGestureGuide);
+    return;
+  }
   const cellSize = boardWidth / 16;
 
   // 손가락 중심을 대상 로봇 셀 중앙에 정렬
@@ -548,6 +556,10 @@ function applyTutorialStep(step) {
 
   syncInGameHeaderByMode();
   renderAll();
+  requestAnimationFrame(() => {
+    syncBoardPixelSize(boardWrapperEl);
+    updateTutorialGestureGuide();
+  });
 }
 
 function enterTutorialMode() {
@@ -559,12 +571,19 @@ function enterTutorialMode() {
   if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
   if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
 
+  // 화면 전환을 먼저 수행하여 인게임 보드 및 격자 셀의 실제 픽셀 너비가 계산되도록 합니다
+  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+  if (gameScreenEl) gameScreenEl.hidden = false;
+
   resetTutorialProgress();
   const step = getCurrentTutorialStep();
   applyTutorialStep(step);
 
-  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
-  if (gameScreenEl) gameScreenEl.hidden = false;
+  // 렌더링 직후 보드 픽셀 정렬 및 손가락 제스처 가이드 위치를 동기화
+  requestAnimationFrame(() => {
+    syncBoardPixelSize(boardWrapperEl);
+    updateTutorialGestureGuide();
+  });
 
   trackAnalyticsView('tutorial', true);
 }
