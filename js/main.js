@@ -26,6 +26,22 @@ import { bindInputEvents } from './input.js';
 import { evaluateRoundStatus } from './rules.js';
 import { buildSolverFeedback } from './solver.js';
 import {
+  unlockAudio,
+  isBGMMuted,
+  isSFXMuted,
+  toggleBGMMute,
+  toggleSFXMute,
+  startBGM,
+  stopBGM,
+  playRobotSelect,
+  playSlide,
+  playWallHit,
+  playRobotBufferHit,
+  playUndo,
+  playClear,
+  playButtonClick,
+} from './audio.js';
+import {
   authState,
   restoreAuthSession,
   loginOrRegisterUser,
@@ -76,6 +92,10 @@ const btnBackLobbyEl = document.getElementById('btn-back-lobby');
 const hudModeTitleEl = document.getElementById('hud-mode-title');
 const btnChangeDifficultyEl = document.getElementById('btn-change-difficulty');
 const btnOpenLeaderboardEl = document.getElementById('btn-open-leaderboard');
+const btnBgmToggleLobbyEl = document.getElementById('btn-bgm-toggle-lobby');
+const btnSfxToggleLobbyEl = document.getElementById('btn-sfx-toggle-lobby');
+const btnBgmToggleGameEl = document.getElementById('btn-bgm-toggle-game');
+const btnSfxToggleGameEl = document.getElementById('btn-sfx-toggle-game');
 
 const boardWrapperEl = document.querySelector('.board-wrapper');
 const boardGridEl = document.getElementById('board-grid');
@@ -322,6 +342,24 @@ function showLobbyToast(message) {
   lobbyToastTimer = setTimeout(() => {
     lobbyToastEl.hidden = true;
   }, 3000);
+}
+
+function syncSoundUI() {
+  const bgmMuted = isBGMMuted();
+  const sfxMuted = isSFXMuted();
+
+  const updateBtn = (btn, muted, icon, labelBase) => {
+    if (!btn) return;
+    const iconEl = btn.querySelector('.sound-icon');
+    if (iconEl) iconEl.textContent = icon;
+    btn.title = `${labelBase} ${muted ? '켜기' : '끄기'}`;
+    btn.classList.toggle('is-muted', muted);
+  };
+
+  updateBtn(btnBgmToggleLobbyEl, bgmMuted, '🎵', '배경음악');
+  updateBtn(btnBgmToggleGameEl, bgmMuted, '🎵', '배경음악');
+  updateBtn(btnSfxToggleLobbyEl, sfxMuted, '🔊', '효과음');
+  updateBtn(btnSfxToggleGameEl, sfxMuted, '🔊', '효과음');
 }
 
 function syncInGameHeaderByMode() {
@@ -753,6 +791,7 @@ function handleSelectRobot(color) {
   if (gameState.isCleared) return;
   if (!color || gameState.selectedRobot === color) return;
   gameState.selectedRobot = color;
+  playRobotSelect();
   updateRobotPositions(robotsLayerEl, gameState);
   renderHUD(gameState);
 }
@@ -777,6 +816,14 @@ function handleMoveDirection(direction) {
   // 이미 벽이나 다른 로봇에 막혀 1칸도 움직이지 못한 경우 무시
   if (!slideResult.moved) return;
 
+  // 미끄러짐 추진 및 충돌 완충 효과음 재생
+  playSlide();
+  if (slideResult.stoppedBy === 'robot') {
+    setTimeout(() => playRobotBufferHit(), 70);
+  } else if (slideResult.stoppedBy === 'wall') {
+    setTimeout(() => playWallHit(), 70);
+  }
+
   // 이동 전 상태를 Undo 스택에 기록 ([로봇색상, 출발좌표, 이전 이동횟수, 이전 완충횟수, 이동방향])
   recordMoveForUndo(robotColor, direction);
 
@@ -799,6 +846,8 @@ function handleMoveDirection(direction) {
   const evaluation = evaluateRoundStatus(gameState, robotColor);
   if (evaluation.status === 'CLEARED') {
     gameState.isCleared = true;
+    setTimeout(() => playClear(), 100);
+
     // 일일 챌린지는 PvP 경쟁 모드이므로 솔버 최적해 스포일러(이동/완충 추가 개선 여부)를 비공개 처리
     // 무한 모드는 컴퓨터 최적해 도전(PvE) 모드이므로 솔버 피드백 유지
     const isDaily = gameState.gameMode === 'daily';
@@ -826,6 +875,7 @@ function handleMoveDirection(direction) {
  */
 function handleUndo() {
   if (undoLastMove()) {
+    playUndo();
     updateRobotPositions(robotsLayerEl, gameState);
     renderHUD(gameState);
     renderRuleFeedback({ status: 'NONE' });
@@ -837,6 +887,7 @@ function handleUndo() {
  */
 function handleReset() {
   if (resetCurrentRound()) {
+    playUndo();
     updateRobotPositions(robotsLayerEl, gameState);
     renderHUD(gameState);
     renderRuleFeedback({ status: 'NONE' });
@@ -891,6 +942,7 @@ function renderAll() {
 function bootstrap() {
   syncLobbyDifficultyUI();
   syncAuthUI();
+  syncSoundUI();
 
   // 로컬스토리지 로그인 세션 복원
   restoreAuthSession().then(() => {
@@ -1242,6 +1294,39 @@ function bootstrap() {
   document.addEventListener('click', () => {
     hideHudPopover();
   });
+
+  // BGM / SFX 개별 토글 이벤트 바인딩
+  const handleToggleBGM = () => {
+    unlockAudio();
+    toggleBGMMute();
+    syncSoundUI();
+  };
+
+  const handleToggleSFX = () => {
+    unlockAudio();
+    const muted = toggleSFXMute();
+    syncSoundUI();
+    if (!muted) {
+      playButtonClick();
+    }
+  };
+
+  if (btnBgmToggleLobbyEl) btnBgmToggleLobbyEl.addEventListener('click', handleToggleBGM);
+  if (btnBgmToggleGameEl) btnBgmToggleGameEl.addEventListener('click', handleToggleBGM);
+  if (btnSfxToggleLobbyEl) btnSfxToggleLobbyEl.addEventListener('click', handleToggleSFX);
+  if (btnSfxToggleGameEl) btnSfxToggleGameEl.addEventListener('click', handleToggleSFX);
+
+  // 모바일/브라우저 첫 인터랙션 시 Web Audio API 언락 및 BGM 시작 (Autoplay 정책 대응)
+  const handleFirstAudioUnlock = () => {
+    unlockAudio();
+    if (!isBGMMuted()) {
+      startBGM();
+    }
+    window.removeEventListener('pointerdown', handleFirstAudioUnlock);
+    window.removeEventListener('keydown', handleFirstAudioUnlock);
+  };
+  window.addEventListener('pointerdown', handleFirstAudioUnlock, { passive: true });
+  window.addEventListener('keydown', handleFirstAudioUnlock, { passive: true });
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);

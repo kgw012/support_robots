@@ -140,6 +140,52 @@ body {
   gap: 4px;
 }
 
+.lobby-hero-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.sound-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sound-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sound-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.sound-toggle-btn:active {
+  transform: scale(0.92);
+}
+
+.sound-toggle-btn.is-muted {
+  opacity: 0.42;
+  filter: grayscale(1);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
 .lobby-sector-tag {
   display: inline-flex;
   align-items: center;
@@ -769,6 +815,13 @@ body {
   gap: 8px;
 }
 
+.hud-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .title-home-btn {
   display: inline-flex;
   align-items: center;
@@ -780,6 +833,7 @@ body {
   padding: 2px 4px 2px 0;
   border-radius: 6px;
   transition: opacity 0.15s ease;
+  white-space: nowrap;
 }
 
 .title-home-btn:hover {
@@ -1688,6 +1742,38 @@ body {
   font-weight: 800;
   color: #93c5fd;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .hud-header {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .hud-top-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .hud-title-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .hud-top-actions {
+    width: 100%;
+    display: flex;
+    gap: 6px;
+  }
+
+  .hud-top-actions .top-next-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 6px 8px;
+    font-size: 0.76rem;
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 440px) {

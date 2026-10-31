@@ -106,10 +106,32 @@
         </svg>
 
         <div class="lobby-hero-overlay">
-          <span class="lobby-sector-tag">
-            <span class="beacon-dot"></span>
-            UNDERGROUND SECTOR B-16 · SEISMIC ALERT
-          </span>
+          <div class="lobby-hero-header">
+            <span class="lobby-sector-tag">
+              <span class="beacon-dot"></span>
+              UNDERGROUND SECTOR B-16 · SEISMIC ALERT
+            </span>
+            <div class="sound-controls-group">
+              <button
+                type="button"
+                id="btn-bgm-toggle-lobby"
+                class="sound-toggle-btn"
+                title="배경음악 켜기/끄기"
+                aria-label="배경음악 켜기/끄기"
+              >
+                <span class="sound-icon">🎵</span>
+              </button>
+              <button
+                type="button"
+                id="btn-sfx-toggle-lobby"
+                class="sound-toggle-btn"
+                title="효과음 켜기/끄기"
+                aria-label="효과음 켜기/끄기"
+              >
+                <span class="sound-icon">🔊</span>
+              </button>
+            </div>
+          </div>
           <h1 class="lobby-title">SUPPORT ROBOTS</h1>
           <p class="lobby-subtitle">서포트 로봇 : 무너지는 지하 폐기장 구조 작전</p>
         </div>
@@ -377,24 +399,46 @@
       <!-- 상단 정보 표시줄 (HUD) -->
       <header class="hud-header">
         <div class="hud-top-row">
-          <button
-            type="button"
-            id="btn-back-lobby"
-            class="title-home-btn"
-            title="메인 로비로 돌아가기"
-          >
-            <svg viewBox="0 0 24 24" class="icon-svg-sm" aria-hidden="true">
-              <path
-                d="M15 18l-6-6 6-6"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <h1 id="hud-mode-title" class="game-title">무한 모드</h1>
-          </button>
+          <div class="hud-title-group">
+            <button
+              type="button"
+              id="btn-back-lobby"
+              class="title-home-btn"
+              title="메인 로비로 돌아가기"
+            >
+              <svg viewBox="0 0 24 24" class="icon-svg-sm" aria-hidden="true">
+                <path
+                  d="M15 18l-6-6 6-6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <h1 id="hud-mode-title" class="game-title">무한 모드</h1>
+            </button>
+            <div class="sound-controls-group">
+              <button
+                type="button"
+                id="btn-bgm-toggle-game"
+                class="sound-toggle-btn"
+                title="배경음악 켜기/끄기"
+                aria-label="배경음악 켜기/끄기"
+              >
+                <span class="sound-icon">🎵</span>
+              </button>
+              <button
+                type="button"
+                id="btn-sfx-toggle-game"
+                class="sound-toggle-btn"
+                title="효과음 켜기/끄기"
+                aria-label="효과음 켜기/끄기"
+              >
+                <span class="sound-icon">🔊</span>
+              </button>
+            </div>
+          </div>
           <div class="hud-top-actions">
             <button
               type="button"
