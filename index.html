@@ -314,18 +314,27 @@
             <span class="mode-guide-badge">랭킹 ▸</span>
           </button>
 
-          <button
-            type="button"
+          <div
             id="btn-how-to-play"
             class="lobby-mode-btn is-guide"
-            aria-label="게임 방법 및 규칙 보기"
+            role="button"
+            tabindex="0"
+            aria-label="튜토리얼 기본 규칙 연습 시작"
           >
             <div class="mode-btn-info">
-              <span class="mode-btn-title">📖 게임 방법</span>
-              <span class="mode-btn-desc">조작법 · 탈출 조건 · 완충 가이드</span>
+              <span class="mode-btn-title">🎮 튜토리얼</span>
+              <span class="mode-btn-desc">기본 규칙 연습</span>
             </div>
-            <span class="mode-guide-badge">가이드 ▸</span>
-          </button>
+            <button
+              type="button"
+              id="btn-lobby-guide-text"
+              class="mode-guide-badge"
+              title="조작법 텍스트 매뉴얼 보기"
+              aria-label="조작법 텍스트 매뉴얼 보기"
+            >
+              가이드 ▸
+            </button>
+          </div>
         </div>
       </div>
 
@@ -442,6 +451,14 @@
           <div class="hud-top-actions">
             <button
               type="button"
+              id="btn-ingame-help"
+              class="top-next-btn"
+              title="게임 규칙 및 조작법 매뉴얼 보기"
+            >
+              <span>📖 가이드</span>
+            </button>
+            <button
+              type="button"
               id="btn-change-difficulty"
               class="top-next-btn"
               title="난이도 변경"
@@ -523,10 +540,29 @@
         <div id="hud-info-popover" class="hud-info-popover" hidden></div>
       </header>
 
+      <!-- 튜토리얼 단계 미션 안내 카드 -->
+      <div id="tutorial-guide-card" class="tutorial-guide-card" hidden>
+        <div class="tutorial-card-header">
+          <span id="tutorial-step-tag" class="tutorial-step-tag">1단계 / 3단계</span>
+          <strong id="tutorial-step-title" class="tutorial-step-title">기본 이동 &amp; 벽 충돌</strong>
+        </div>
+        <p id="tutorial-step-desc" class="tutorial-step-desc">
+          로봇은 벽에 부딪힐 때까지 멈추지 않고 미끄러집니다! 벽을 이용해 방향을 꺾어 탈출구로 들어가세요.
+        </p>
+        <div id="tutorial-step-hint" class="tutorial-step-hint">
+          💡 빨간 로봇을 선택하고 <strong>← 왼쪽</strong>으로 스와이프한 뒤, 멈추면 <strong>↓ 아래</strong>로 내려보세요.
+        </div>
+      </div>
+
       <!-- 16x16 게임 보드 영역 -->
       <section class="board-wrapper" aria-label="16x16 게임 보드">
         <div id="board-grid" class="board-grid"></div>
         <div id="robots-layer" class="robots-layer"></div>
+        <div id="tutorial-gesture-layer" class="tutorial-gesture-layer" hidden>
+          <div id="tutorial-finger" class="tutorial-finger">
+            <span class="finger-icon">👆</span>
+          </div>
+        </div>
         <div id="rule-toast" class="rule-toast" hidden></div>
         <div id="clear-overlay" class="clear-overlay" hidden>
           <div class="clear-card">

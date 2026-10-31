@@ -14,6 +14,18 @@ import {
   getTodayKSTDateSeed,
 } from './state.js';
 import {
+  createBoardData,
+} from './boardPresets.js';
+import {
+  getCurrentTutorialStep,
+  advanceTutorialStep,
+  isTutorialFinalStep,
+  resetTutorialProgress,
+  getTutorialGestureGuide,
+  getStep3Phase,
+  setStep3Phase,
+} from './tutorial.js';
+import {
   syncBoardPixelSize,
   renderBoardGrid,
   renderRobots,
@@ -83,6 +95,7 @@ const lobbyDiffLabelEl = document.getElementById('lobby-diff-label');
 const lobbyDiffDrawerEl = document.getElementById('lobby-diff-drawer');
 
 const btnHowToPlayEl = document.getElementById('btn-how-to-play');
+const btnLobbyGuideTextEl = document.getElementById('btn-lobby-guide-text');
 const btnLobbyLeaderboardEl = document.getElementById('btn-lobby-leaderboard');
 const howtoModalEl = document.getElementById('howto-modal');
 const btnHowtoCloseEl = document.getElementById('btn-howto-close');
@@ -91,8 +104,17 @@ const lobbyToastEl = document.getElementById('lobby-toast');
 
 const btnBackLobbyEl = document.getElementById('btn-back-lobby');
 const hudModeTitleEl = document.getElementById('hud-mode-title');
+const btnIngameHelpEl = document.getElementById('btn-ingame-help');
 const btnChangeDifficultyEl = document.getElementById('btn-change-difficulty');
 const btnOpenLeaderboardEl = document.getElementById('btn-open-leaderboard');
+
+const tutorialGuideCardEl = document.getElementById('tutorial-guide-card');
+const tutorialStepTagEl = document.getElementById('tutorial-step-tag');
+const tutorialStepTitleEl = document.getElementById('tutorial-step-title');
+const tutorialStepDescEl = document.getElementById('tutorial-step-desc');
+const tutorialStepHintEl = document.getElementById('tutorial-step-hint');
+const tutorialGestureLayerEl = document.getElementById('tutorial-gesture-layer');
+const tutorialFingerEl = document.getElementById('tutorial-finger');
 const btnBgmToggleLobbyEl = document.getElementById('btn-bgm-toggle-lobby');
 const btnSfxToggleLobbyEl = document.getElementById('btn-sfx-toggle-lobby');
 const btnBgmToggleGameEl = document.getElementById('btn-bgm-toggle-game');
@@ -182,6 +204,53 @@ let lobbyToastTimer = null;
 let activeLeaderboardMode = 'daily';
 let activeLeaderboardDiff = 'normal';
 let isDailyHistoryView = false;
+let isTutorialUndoLocked = false;
+
+/**
+ * 튜토리얼 미션 지시 카드 텍스트를 현재 세부 진행 상태에 맞게 실시간 갱신합니다.
+ */
+function updateTutorialStepCard() {
+  if (!tutorialGuideCardEl || gameState.gameMode !== 'tutorial') return;
+  const step = getCurrentTutorialStep();
+  if (tutorialStepTagEl) tutorialStepTagEl.textContent = step.badge;
+  if (tutorialStepTitleEl) tutorialStepTitleEl.textContent = step.title;
+  if (tutorialStepDescEl) tutorialStepDescEl.textContent = step.instruction;
+  if (tutorialStepHintEl) tutorialStepHintEl.innerHTML = step.hint;
+}
+
+/**
+ * 튜토리얼 모드에서 유저가 다음으로 이동시켜야 할 로봇과 방향을
+ * 보드판 위에 손가락 제스처 모션(👆)으로 시각화합니다.
+ */
+function updateTutorialGestureGuide() {
+  if (!tutorialGestureLayerEl || !tutorialFingerEl || !boardGridEl) return;
+
+  if (gameState.gameMode !== 'tutorial' || gameState.isCleared || isTutorialUndoLocked) {
+    tutorialGestureLayerEl.hidden = true;
+    return;
+  }
+
+  const step = getCurrentTutorialStep();
+  const guide = getTutorialGestureGuide(step.stepIndex, gameState.robots, getStep3Phase());
+
+  if (!guide.active) {
+    tutorialGestureLayerEl.hidden = true;
+    return;
+  }
+
+  const boardWidth = boardGridEl.clientWidth;
+  if (!boardWidth) return;
+  const cellSize = boardWidth / 16;
+
+  // 손가락 중심을 대상 로봇 셀 중앙에 정렬
+  const topPx = guide.row * cellSize + (cellSize / 2) - 22;
+  const leftPx = guide.col * cellSize + (cellSize / 2) - 22;
+
+  tutorialFingerEl.style.top = `${topPx}px`;
+  tutorialFingerEl.style.left = `${leftPx}px`;
+  tutorialFingerEl.className = `tutorial-finger ${guide.directionClass}`;
+  tutorialGestureLayerEl.hidden = false;
+}
 
 /**
  * SPA 네비게이션 가상 뷰 추적 및 히스토리 관리
@@ -358,29 +427,93 @@ function syncSoundUI() {
 
 function syncInGameHeaderByMode() {
   const isDaily = gameState.gameMode === 'daily';
+  const isTutorial = gameState.gameMode === 'tutorial';
   const todayInfo = getTodayKSTDateSeed();
 
   if (hudModeTitleEl) {
-    hudModeTitleEl.textContent = isDaily
-      ? `일일 챌린지 (${todayInfo.shortFormatted})`
-      : '무한 모드';
+    if (isTutorial) {
+      hudModeTitleEl.textContent = '🎮 튜토리얼';
+    } else if (isDaily) {
+      hudModeTitleEl.textContent = `일일 챌린지 (${todayInfo.shortFormatted})`;
+    } else {
+      hudModeTitleEl.textContent = '무한 모드';
+    }
   }
+
+  // 상단 액션 버튼 제어
   if (btnOpenLeaderboardEl) {
-    btnOpenLeaderboardEl.hidden = false;
+    btnOpenLeaderboardEl.hidden = isTutorial;
+  }
+  if (btnChangeDifficultyEl) {
+    btnChangeDifficultyEl.hidden = isTutorial;
   }
   if (btnSkipStageEl) {
     btnSkipStageEl.hidden = isDaily;
+    const labelSpan = btnSkipStageEl.querySelector('span');
+    if (labelSpan) {
+      labelSpan.textContent = isTutorial ? '다음 단계' : '다음 문제';
+    }
   }
+
+  // 튜토리얼 안내 카드 노출 제어
+  if (tutorialGuideCardEl) {
+    tutorialGuideCardEl.hidden = !isTutorial;
+  }
+
   if (btnClearNextEl) {
-    btnClearNextEl.textContent = isDaily ? '🏆 순위표 보기' : '다음 문제';
+    if (isTutorial) {
+      btnClearNextEl.textContent = isTutorialFinalStep() ? '메인 로비로' : '다음 단계로 ▸';
+    } else {
+      btnClearNextEl.textContent = isDaily ? '🏆 순위표 보기' : '다음 문제';
+    }
   }
   if (btnClearShareEl) {
-    btnClearShareEl.hidden = !isDaily;
+    btnClearShareEl.hidden = isTutorial || !isDaily;
     btnClearShareEl.classList.remove('copied');
   }
   if (btnClearShareTextEl) {
     btnClearShareTextEl.textContent = '기록 공유하기';
   }
+}
+
+function applyTutorialStep(step) {
+  isTutorialUndoLocked = false;
+  if (btnUndoEl) {
+    btnUndoEl.classList.remove('is-pulse-focus');
+  }
+
+  const fixedBoard = createBoardData({ quadrantOrder: ['A', 'B', 'C', 'D'] });
+  const target = fixedBoard.targets[step.targetIndex];
+
+  initGameState({
+    mode: 'tutorial',
+    quadrantOrder: ['A', 'B', 'C', 'D'],
+    initialRobots: step.initialRobots,
+    activeTarget: target,
+    minMoves: step.minMoves,
+  });
+
+  updateTutorialStepCard();
+
+  syncInGameHeaderByMode();
+  renderAll();
+}
+
+function enterTutorialMode() {
+  unlockAudio();
+  if (!isBGMMuted()) {
+    startBGM();
+  }
+
+  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+  if (gameScreenEl) gameScreenEl.hidden = false;
+  if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+  if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
+
+  resetTutorialProgress();
+  const step = getCurrentTutorialStep();
+  applyTutorialStep(step);
+  trackAnalyticsView('tutorial', true);
 }
 
 function enterInfiniteMode() {
@@ -430,12 +563,22 @@ function enterDailyChallengeMode() {
 }
 
 function returnToLobby(fromPopState = false) {
+  isTutorialUndoLocked = false;
+  if (btnUndoEl) {
+    btnUndoEl.classList.remove('is-pulse-focus');
+  }
+  if (tutorialGestureLayerEl) {
+    tutorialGestureLayerEl.hidden = true;
+  }
   hideHudPopover();
   if (leaveConfirmModalEl) {
     leaveConfirmModalEl.hidden = true;
   }
   if (clearOverlayEl) {
     clearOverlayEl.hidden = true;
+  }
+  if (tutorialGuideCardEl) {
+    tutorialGuideCardEl.hidden = true;
   }
   syncLobbyDifficultyUI();
   syncAuthUI();
@@ -742,6 +885,13 @@ async function openLeaderboardModal(
 async function handleModeClearSubmission(solverFeedback) {
   if (!clearModeRewardEl) return;
 
+  if (gameState.gameMode === 'tutorial') {
+    const step = getCurrentTutorialStep();
+    clearModeRewardEl.hidden = false;
+    clearModeRewardEl.textContent = `🎯 ${step.clearMessage}`;
+    return;
+  }
+
   if (gameState.gameMode === 'daily') {
     if (!authState.isLoggedIn) {
       clearModeRewardEl.hidden = false;
@@ -916,6 +1066,16 @@ function handleSelectRobot(color) {
 function handleMoveDirection(direction) {
   if (gameState.isCleared) return;
 
+  // 3단계 직진 무효 상태에서는 되돌리기(Undo)를 누르기 전까지 다른 조작을 잠금
+  if (isTutorialUndoLocked) {
+    playWallHit();
+    renderRuleFeedback({
+      status: 'INVALID_STRAIGHT',
+      message: '⚠️ 직진 도달 무효! 하단의 [되돌리기] 버튼을 눌러 출발 위치로 돌아가세요.',
+    });
+    return;
+  }
+
   const robotColor = gameState.selectedRobot;
   if (!robotColor || !gameState.board) return;
 
@@ -960,19 +1120,47 @@ function handleMoveDirection(direction) {
   if (evaluation.status === 'CLEARED') {
     gameState.isCleared = true;
     setTimeout(() => playClear(), 100);
+    if (tutorialGestureLayerEl) tutorialGestureLayerEl.hidden = true;
 
-    // 일일 챌린지는 PvP 경쟁 모드이므로 솔버 최적해 스포일러(이동/완충 추가 개선 여부)를 비공개 처리
-    // 무한 모드는 컴퓨터 최적해 도전(PvE) 모드이므로 솔버 피드백 유지
+    const isTutorial = gameState.gameMode === 'tutorial';
     const isDaily = gameState.gameMode === 'daily';
-    if (btnClearShareEl) {
-      btnClearShareEl.hidden = !isDaily;
-      btnClearShareEl.classList.remove('copied');
-    }
-    if (btnClearShareTextEl) {
-      btnClearShareTextEl.textContent = '기록 공유하기';
+
+    const clearTitleEl = clearOverlayEl ? clearOverlayEl.querySelector('.clear-title') : null;
+    if (isTutorial) {
+      const step = getCurrentTutorialStep();
+      const isFinal = isTutorialFinalStep();
+      if (clearTitleEl) {
+        clearTitleEl.textContent = step.clearTitle;
+      }
+      if (btnClearShareEl) btnClearShareEl.hidden = true;
+      if (btnClearNextEl) {
+        btnClearNextEl.textContent = isFinal ? '메인 로비로' : '다음 단계로 ▸';
+      }
+      if (btnClearRetryEl) {
+        btnClearRetryEl.hidden = isFinal;
+        btnClearRetryEl.textContent = '다시 연습';
+      }
+    } else {
+      if (clearTitleEl) {
+        clearTitleEl.textContent = '구조 성공!';
+      }
+      if (btnClearRetryEl) {
+        btnClearRetryEl.hidden = false;
+        btnClearRetryEl.textContent = '다시 도전';
+      }
+      if (btnClearNextEl) {
+        btnClearNextEl.textContent = isDaily ? '🏆 순위표 보기' : '다음 문제';
+      }
+      if (btnClearShareEl) {
+        btnClearShareEl.hidden = !isDaily;
+        btnClearShareEl.classList.remove('copied');
+      }
+      if (btnClearShareTextEl) {
+        btnClearShareTextEl.textContent = '기록 공유하기';
+      }
     }
 
-    const solverFeedback = isDaily
+    const solverFeedback = (isDaily || isTutorial)
       ? null
       : buildSolverFeedback(
           gameState.moveCount,
@@ -980,14 +1168,31 @@ function handleMoveDirection(direction) {
           gameState.minMoves,
           gameState.maxCollisions
         );
-    const bestRecordInfo = updateBestRecord(
-      gameState.moveCount,
-      gameState.collisionCount
-    );
+    const bestRecordInfo = isTutorial
+      ? null
+      : updateBestRecord(
+          gameState.moveCount,
+          gameState.collisionCount
+        );
     renderRuleFeedback(evaluation, solverFeedback, bestRecordInfo);
     handleModeClearSubmission(solverFeedback);
     return;
   }
+
+  // 3단계에서 직진 도달 무효 발생 시 되돌리기(Undo) 버튼 강제 포커싱 및 우회 안내 준비
+  if (evaluation.status === 'INVALID_STRAIGHT') {
+    if (gameState.gameMode === 'tutorial') {
+      setStep3Phase('undo_required');
+      isTutorialUndoLocked = true;
+      if (btnUndoEl) btnUndoEl.classList.add('is-pulse-focus');
+      if (tutorialGestureLayerEl) tutorialGestureLayerEl.hidden = true;
+      updateTutorialStepCard();
+      evaluation.message = '⚠️ 직진 도달 무효! 하단의 [되돌리기] 버튼을 눌러 출발 위치로 돌아가세요.';
+    }
+  } else {
+    updateTutorialGestureGuide();
+  }
+
   renderRuleFeedback(evaluation);
 }
 
@@ -995,11 +1200,21 @@ function handleMoveDirection(direction) {
  * 이전 동작 취소 (Undo)
  */
 function handleUndo() {
+  if (isTutorialUndoLocked) {
+    isTutorialUndoLocked = false;
+    if (btnUndoEl) btnUndoEl.classList.remove('is-pulse-focus');
+    if (gameState.gameMode === 'tutorial' && getCurrentTutorialStep().stepIndex === 3) {
+      setStep3Phase('detour');
+      updateTutorialStepCard();
+    }
+  }
+
   if (undoLastMove()) {
     playUndo();
     updateRobotPositions(robotsLayerEl, gameState);
     renderHUD(gameState);
     renderRuleFeedback({ status: 'NONE' });
+    updateTutorialGestureGuide();
   }
 }
 
@@ -1007,11 +1222,19 @@ function handleUndo() {
  * 현재 라운드 처음부터 다시하기 (Reset)
  */
 function handleReset() {
+  isTutorialUndoLocked = false;
+  if (btnUndoEl) btnUndoEl.classList.remove('is-pulse-focus');
+  if (gameState.gameMode === 'tutorial' && getCurrentTutorialStep().stepIndex === 3) {
+    setStep3Phase('try_straight');
+    updateTutorialStepCard();
+  }
+
   if (resetCurrentRound()) {
     playUndo();
     updateRobotPositions(robotsLayerEl, gameState);
     renderHUD(gameState);
     renderRuleFeedback({ status: 'NONE' });
+    updateTutorialGestureGuide();
   }
 }
 
@@ -1055,6 +1278,7 @@ function renderAll() {
   renderRobots(robotsLayerEl, gameState, handleSelectRobot);
   renderHUD(gameState);
   renderRuleFeedback({ status: 'NONE' });
+  updateTutorialGestureGuide();
 }
 
 /**
@@ -1075,6 +1299,7 @@ async function bootstrap() {
   window.addEventListener('resize', () => {
     if (gameScreenEl && !gameScreenEl.hidden) {
       syncBoardPixelSize(boardWrapperEl);
+      updateTutorialGestureGuide();
     }
   });
 
@@ -1253,15 +1478,46 @@ async function bootstrap() {
     }
   }, 240000);
 
+  const openHowtoModal = () => {
+    playButtonClick();
+    if (howtoModalEl) howtoModalEl.hidden = false;
+  };
+
   const closeHowtoModal = () => {
+    playButtonClick();
     if (howtoModalEl) howtoModalEl.hidden = true;
   };
 
-  if (btnHowToPlayEl && howtoModalEl) {
-    btnHowToPlayEl.addEventListener('click', () => {
-      howtoModalEl.hidden = false;
+  // 게임 방법 버튼 본체 클릭 시: 인터랙티브 3단계 튜토리얼 모드 시작!
+  if (btnHowToPlayEl) {
+    btnHowToPlayEl.addEventListener('click', (e) => {
+      if (e.target.closest('#btn-lobby-guide-text')) return;
+      playButtonClick();
+      enterTutorialMode();
+    });
+    btnHowToPlayEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target.closest('#btn-lobby-guide-text')) return;
+        e.preventDefault();
+        playButtonClick();
+        enterTutorialMode();
+      }
     });
   }
+
+  // 우측 작은 '가이드 ▸' 버튼 클릭 시: 조작법 텍스트 모달 열기!
+  if (btnLobbyGuideTextEl) {
+    btnLobbyGuideTextEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openHowtoModal();
+    });
+  }
+
+  // 인게임 상단 헤더 '📖 가이드' 버튼 클릭 시: 조작법 텍스트 모달 열기!
+  if (btnIngameHelpEl) {
+    btnIngameHelpEl.addEventListener('click', openHowtoModal);
+  }
+
   if (btnHowtoCloseEl) {
     btnHowtoCloseEl.addEventListener('click', closeHowtoModal);
   }
@@ -1352,17 +1608,48 @@ async function bootstrap() {
     });
   }
   if (btnSkipStageEl) {
-    btnSkipStageEl.addEventListener('click', () => handleNextStage());
+    btnSkipStageEl.addEventListener('click', () => {
+      playButtonClick();
+      if (gameState.gameMode === 'tutorial') {
+        if (isTutorialFinalStep()) {
+          returnToLobby();
+        } else {
+          const { step } = advanceTutorialStep();
+          applyTutorialStep(step);
+        }
+      } else {
+        handleNextStage();
+      }
+    });
   }
   if (btnClearRetryEl) {
-    btnClearRetryEl.addEventListener('click', handleReset);
+    btnClearRetryEl.addEventListener('click', () => {
+      playButtonClick();
+      if (gameState.gameMode === 'tutorial') {
+        if (isTutorialFinalStep()) {
+          returnToLobby();
+        } else {
+          handleReset();
+        }
+      } else {
+        handleReset();
+      }
+    });
   }
   if (btnClearShareEl) {
     btnClearShareEl.addEventListener('click', handleShareDailyRecord);
   }
   if (btnClearNextEl) {
     btnClearNextEl.addEventListener('click', () => {
-      if (gameState.gameMode === 'daily') {
+      playButtonClick();
+      if (gameState.gameMode === 'tutorial') {
+        if (isTutorialFinalStep()) {
+          returnToLobby();
+        } else {
+          const { step } = advanceTutorialStep();
+          applyTutorialStep(step);
+        }
+      } else if (gameState.gameMode === 'daily') {
         openLeaderboardModal(gameState.dailyDifficultyMode || 'normal', 'daily');
       } else {
         handleNextStage();
