@@ -35,6 +35,10 @@ const btnModeInfiniteEl = document.getElementById('btn-mode-infinite');
 const btnLobbyDiffEl = document.getElementById('btn-lobby-diff');
 const lobbyDiffLabelEl = document.getElementById('lobby-diff-label');
 const lobbyDiffDrawerEl = document.getElementById('lobby-diff-drawer');
+const btnHowToPlayEl = document.getElementById('btn-how-to-play');
+const howtoModalEl = document.getElementById('howto-modal');
+const btnHowtoCloseEl = document.getElementById('btn-howto-close');
+const btnHowtoCloseTopEl = document.getElementById('btn-howto-close-top');
 const lobbyToastEl = document.getElementById('lobby-toast');
 const btnBackLobbyEl = document.getElementById('btn-back-lobby');
 const btnChangeDifficultyEl = document.getElementById('btn-change-difficulty');
@@ -393,6 +397,29 @@ function bootstrap() {
 
   if (btnBackLobbyEl) {
     btnBackLobbyEl.addEventListener('click', returnToLobby);
+  }
+
+  const closeHowtoModal = () => {
+    if (howtoModalEl) howtoModalEl.hidden = true;
+  };
+
+  if (btnHowToPlayEl && howtoModalEl) {
+    btnHowToPlayEl.addEventListener('click', () => {
+      howtoModalEl.hidden = false;
+    });
+  }
+  if (btnHowtoCloseEl) {
+    btnHowtoCloseEl.addEventListener('click', closeHowtoModal);
+  }
+  if (btnHowtoCloseTopEl) {
+    btnHowtoCloseTopEl.addEventListener('click', closeHowtoModal);
+  }
+  if (howtoModalEl) {
+    howtoModalEl.addEventListener('click', (e) => {
+      if (e.target === howtoModalEl) {
+        closeHowtoModal();
+      }
+    });
   }
 
   // 2. 인게임 보드 및 상단/하단 버튼 이벤트 바인딩

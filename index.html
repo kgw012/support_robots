@@ -204,9 +204,80 @@
             </div>
           </div>
         </div>
+
+        <!-- 3. 게임 방법 버튼 -->
+        <button
+          type="button"
+          id="btn-how-to-play"
+          class="lobby-mode-btn is-guide"
+          aria-label="게임 방법 및 규칙 보기"
+        >
+          <div class="mode-btn-info">
+            <span class="mode-btn-title">게임 방법</span>
+            <span class="mode-btn-desc">조작법 · 탈출 조건 · 동료 로봇 완충 활용 가이드</span>
+          </div>
+          <span class="mode-guide-badge">가이드 ▸</span>
+        </button>
       </div>
 
       <div id="lobby-toast" class="lobby-toast" hidden></div>
+
+      <!-- 게임 방법 모달 오버레이 -->
+      <div id="howto-modal" class="howto-modal" hidden role="dialog" aria-modal="true" aria-labelledby="howto-modal-title">
+        <div class="howto-card">
+          <div class="howto-header">
+            <h2 id="howto-modal-title" class="howto-title">게임 방법 · 구조 매뉴얼</h2>
+            <button type="button" id="btn-howto-close-top" class="howto-icon-close" aria-label="닫기">✕</button>
+          </div>
+
+          <div class="howto-steps">
+            <div class="howto-step-item">
+              <span class="howto-step-num">01</span>
+              <div class="howto-step-body">
+                <strong>직선 미끄러짐 이동 (스와이프 / 방향키)</strong>
+                <p>
+                  로봇을 터치한 뒤 상·하·좌·우로 밀면(PC는 마우스 드래그 또는 방향키/WASD),
+                  <strong>벽이나 다른 로봇에 부딪힐 때까지 직선으로 끝까지 미끄러져 이동</strong>합니다.
+                </p>
+              </div>
+            </div>
+
+            <div class="howto-step-item">
+              <span class="howto-step-num">02</span>
+              <div class="howto-step-body">
+                <strong>탈출 조건 · 최소 1회 방향 전환(Ricochet) 필수</strong>
+                <p>
+                  보드 위의 <strong>탈출구 심볼과 같은 색상의 로봇</strong>을 해당 칸에 정확히 정지시켜야 합니다. (다색 소용돌이 탈출구는 모든 로봇 가능)<br />
+                  단, 출발지에서 직진 한 번으로 바로 들어가는 것은 무효이며, <strong>최소 1회 이상 벽이나 로봇에 부딪혀 90도로 꺾여 진입</strong>해야 합니다.
+                </p>
+              </div>
+            </div>
+
+            <div class="howto-step-item">
+              <span class="howto-step-num">03</span>
+              <div class="howto-step-body">
+                <strong>서포트 로봇으로 길목 만들어주기</strong>
+                <p>
+                  목표 로봇 혼자서는 허공에서 멈출 수 없습니다. <strong>다른 색상의 동료 로봇들을 먼저 움직여 길목에 배치</strong>하면, 목표 로봇이 부딪혀 멈출 수 있는 든든한 받침대(스토퍼)가 됩니다.
+                </p>
+              </div>
+            </div>
+
+            <div class="howto-step-item">
+              <span class="howto-step-num">04</span>
+              <div class="howto-step-body">
+                <strong>최고 기록 기준 · 최소 이동 &amp; 최다 완충</strong>
+                <p>
+                  <strong>1순위(이동 횟수):</strong> 모든 로봇이 움직인 총 횟수가 적을수록 우수합니다.<br />
+                  <strong>2순위(완충 횟수):</strong> 이동 횟수가 같다면, 외벽 대신 <strong>다른 로봇에 부딪혀 멈춘 횟수(완충)</strong>가 많을수록 더 높은 기록으로 인정됩니다!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" id="btn-howto-close" class="clear-btn primary howto-confirm-btn">확인</button>
+        </div>
+      </div>
 
       <footer class="lobby-credit-footer">
         보드게임 <strong>Ricochet Robots</strong>(Alex Randolph 원작)의 규칙을 기반으로 제작된 팬 프로젝트입니다.
