@@ -75,6 +75,8 @@ const gameScreenEl = document.getElementById('game-screen');
 const btnLoreToggleEl = document.getElementById('btn-lore-toggle');
 const lobbyLoreBodyEl = document.getElementById('lobby-lore-body');
 const loreToggleBadgeEl = document.getElementById('lore-toggle-badge');
+const loreToggleLabelEl = document.getElementById('lore-toggle-label');
+const loreToggleIconEl = document.getElementById('lore-toggle-icon');
 
 const authLoginFormEl = document.getElementById('auth-login-form');
 const inputNicknameEl = document.getElementById('input-nickname');
@@ -1514,14 +1516,24 @@ async function bootstrap() {
     });
   }
 
-  // 1. 메인 로비 이벤트 바인딩
+  // 1. 메인 로비 이벤트 바인딩 (통합 작전 브리핑 페이드아웃 펼쳐보기/접기)
   if (btnLoreToggleEl && lobbyLoreBodyEl) {
     btnLoreToggleEl.addEventListener('click', () => {
-      const isCurrentlyHidden = lobbyLoreBodyEl.hidden;
-      lobbyLoreBodyEl.hidden = !isCurrentlyHidden;
-      btnLoreToggleEl.setAttribute('aria-expanded', String(isCurrentlyHidden));
-      if (loreToggleBadgeEl) {
-        loreToggleBadgeEl.textContent = isCurrentlyHidden ? '접기 ▴' : '펼쳐보기 ▾';
+      const isCollapsed = lobbyLoreBodyEl.classList.contains('is-collapsed');
+      if (isCollapsed) {
+        lobbyLoreBodyEl.classList.remove('is-collapsed');
+        lobbyLoreBodyEl.classList.add('is-expanded');
+        btnLoreToggleEl.setAttribute('aria-expanded', 'true');
+        if (loreToggleLabelEl) loreToggleLabelEl.textContent = '작전 브리핑 접기';
+        if (loreToggleIconEl) loreToggleIconEl.textContent = '▴';
+        if (loreToggleBadgeEl) loreToggleBadgeEl.textContent = '접기 ▴';
+      } else {
+        lobbyLoreBodyEl.classList.remove('is-expanded');
+        lobbyLoreBodyEl.classList.add('is-collapsed');
+        btnLoreToggleEl.setAttribute('aria-expanded', 'false');
+        if (loreToggleLabelEl) loreToggleLabelEl.textContent = '작전 브리핑 펼쳐보기';
+        if (loreToggleIconEl) loreToggleIconEl.textContent = '▾';
+        if (loreToggleBadgeEl) loreToggleBadgeEl.textContent = '펼쳐보기 ▾';
       }
     });
   }

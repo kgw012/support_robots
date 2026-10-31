@@ -43,14 +43,14 @@
         <svg
           class="lobby-hero-svg"
           viewBox="0 0 480 170"
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio="xMidYMin slice"
           aria-hidden="true"
         >
           <defs>
             <linearGradient id="bgShaft" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#0b1017" />
-              <stop offset="60%" stop-color="#131c27" />
-              <stop offset="100%" stop-color="#1b2531" />
+              <stop offset="55%" stop-color="#131c27" />
+              <stop offset="100%" stop-color="#0b1017" />
             </linearGradient>
             <radialGradient id="beaconGlow" cx="0.82" cy="0.22" r="0.45">
               <stop offset="0%" stop-color="rgba(239, 68, 68, 0.38)" />
@@ -132,48 +132,40 @@
               </button>
             </div>
           </div>
-          <h1 class="lobby-title">SUPPORT ROBOTS</h1>
-          <p class="lobby-subtitle">서포트 로봇 : 무너지는 지하 폐기장 구조 작전</p>
+          <div class="lobby-hero-center">
+            <h1 class="lobby-title">SUPPORT ROBOTS</h1>
+            <p class="lobby-subtitle">서포트 로봇 : 무너지는 지하 폐기장 구조 작전</p>
+          </div>
+
+          <!-- 통합 세계관 브리핑 (중앙 정렬 · 1~2행 페이드아웃 · 펼쳐보기 토글) -->
+          <div class="lobby-lore-wrapper">
+            <div id="lobby-lore-body" class="lobby-lore-body is-collapsed">
+              <p class="lobby-lore-line">
+                버려진 로봇 공장의 지하 깊은 곳, 원인 불명의 시스템 에러로 폐기장 시설이 전면 붕괴하기 시작했습니다.
+              </p>
+              <p class="lobby-lore-line">
+                충격으로 격리되어 있던 로봇들은 자세 제어 장치와 마찰력을 상실하여, 한 번 미끄러지면 벽이나 다른 로봇에 부딪히기 전까지는 스스로 멈출 수 없는 유압 제어 불능 상태에 빠졌습니다.
+              </p>
+              <p class="lobby-lore-line">
+                지반은 충격에 극도로 취약하여 콘크리트 외벽에 충돌할 때마다 붕괴가 가속되지만, <strong>동료 로봇에 부딪히면 유압식 완충 장치가 작동해 지반 충격을 완벽히 흡수·분산</strong>합니다.
+              </p>
+              <p class="lobby-lore-line">
+                원격 서포트 로봇들의 제어권을 잡고, 외벽 충돌을 줄이고 동료 완충을 적극 활용하여 고장 난 로봇들을 안전한 탈출구로 인도하세요!
+              </p>
+            </div>
+            <button
+              type="button"
+              id="btn-lore-toggle"
+              class="lobby-lore-toggle-btn"
+              aria-expanded="false"
+              aria-controls="lobby-lore-body"
+            >
+              <span id="lore-toggle-label">작전 브리핑 펼쳐보기</span>
+              <span id="lore-toggle-icon" class="lore-toggle-icon">▾</span>
+            </button>
+          </div>
         </div>
       </div>
-
-      <!-- 세계관 브리핑 (기본 접힘 · 클릭 시 펼쳐보기) -->
-      <article class="lobby-lore-card">
-        <button
-          type="button"
-          id="btn-lore-toggle"
-          class="lobby-lore-toggle"
-          aria-expanded="false"
-          aria-controls="lobby-lore-body"
-        >
-          <div class="lore-toggle-head">
-            <span class="lobby-lore-title">작전 브리핑 · 지하 폐기장 붕괴와 완충 제어</span>
-            <span class="lobby-lore-preview">제동력을 잃은 로봇들을 동료 로봇과의 완충 충돌로 안전하게 유도하세요.</span>
-          </div>
-          <span id="lore-toggle-badge" class="lore-toggle-badge">펼쳐보기 ▾</span>
-        </button>
-
-        <div id="lobby-lore-body" class="lobby-lore-body" hidden>
-          <p class="lobby-lore-line">
-            버려진 로봇 공장의 지하 깊은 곳, 원인 불명의 시스템 에러로 폐기장 시설이 전면 붕괴하기 시작했습니다.
-          </p>
-          <p class="lobby-lore-line">
-            그 충격으로 격리되어 있던 로봇들은 자세 제어 장치와 마찰력을 상실했습니다.
-          </p>
-          <p class="lobby-lore-line">
-            한 번 미끄러지면 <strong>벽이나 다른 로봇에 부딪히기 전까지는 스스로 멈출 수 없는 상태</strong>입니다.
-          </p>
-          <p class="lobby-lore-line">
-            지하 지반은 현재 충격에 극도로 취약하여, 단단한 콘크리트 외벽에 충돌할 때마다 위험한 진동이 발생해 붕괴가 가속됩니다.
-          </p>
-          <p class="lobby-lore-line">
-            반면 <strong>다른 동료 로봇에 부딪혀 멈추면, 로봇에 내장된 유압식 충격 흡수 장치(완충)가 작동해 지반으로 가해지는 충격파를 완벽히 흡수·분산</strong>시킵니다.
-          </p>
-          <p class="lobby-lore-line">
-            지반이 완전히 무너지기 전에 서포트 로봇들의 원격 제어권을 잡고, 불필요한 기동과 외벽 충돌을 줄여 고장 난 로봇들을 안전한 탈출구까지 가이드하세요!
-          </p>
-        </div>
-      </article>
 
       <!-- 대원 인증 (로그인 / 원스톱 자동 가입) 카드 -->
       <div id="lobby-auth-card" class="lobby-auth-card">
