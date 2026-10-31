@@ -170,7 +170,8 @@ function buildHTML(html) {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .join('');
+    .join(' ')
+    .replace(/>\s+</g, '><');
 }
 
 function runBuild() {
