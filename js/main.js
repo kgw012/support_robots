@@ -12,6 +12,10 @@ import {
   updateBestRecord,
   scheduleBackgroundRefill,
   getTodayKSTDateSeed,
+  isDailyChallengeReady,
+  isInfinitePuzzleReady,
+  warmupDailyChallenge,
+  warmupAllDailyChallenges,
 } from './state.js';
 import {
   createBoardData,
@@ -613,11 +617,12 @@ async function enterInfiniteMode() {
     startBGM();
   }
 
-  const isHell = gameState.selectedDifficultyMode === 'hell';
-  if (isHell) {
+  const targetDiff = gameState.selectedDifficultyMode || 'normal';
+  const needsLoading = !isInfinitePuzzleReady(targetDiff);
+  if (needsLoading) {
     showPuzzleLoading(
-      '🔥 HELL 작전 구역 분석 중...',
-      '10회 이상 고난도 탈출 경로와 완충 데이터를 정밀 연산하고 있습니다'
+      `🔥 [${(DIFF_META[targetDiff]?.label || targetDiff).toUpperCase()}] 구역 분석 중...`,
+      '탈출 경로와 완충 데이터를 정밀 연산하고 있습니다'
     );
     await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
   }
@@ -645,9 +650,7 @@ async function enterInfiniteMode() {
     renderAll();
     trackAnalyticsView('infinite', true);
   } finally {
-    if (isHell) {
-      hidePuzzleLoading();
-    }
+    hidePuzzleLoading();
   }
 }
 
@@ -663,11 +666,12 @@ async function enterDailyChallengeMode() {
     startBGM();
   }
 
-  const isHell = (gameState.dailyDifficultyMode || 'normal') === 'hell';
-  if (isHell) {
+  const targetDiff = gameState.dailyDifficultyMode || 'normal';
+  const needsLoading = !isDailyChallengeReady(targetDiff);
+  if (needsLoading) {
     showPuzzleLoading(
-      '📡 일일 챌린지 [HELL] 데이터 연산 중...',
-      '오늘의 고난도 10회 이상 수학적 최단 경로를 정밀 검증하고 있습니다'
+      `📡 일일 챌린지 [${(DIFF_META[targetDiff]?.label || targetDiff).toUpperCase()}] 데이터 연산 중...`,
+      '오늘의 최고 완충 수학적 최단 경로를 정밀 연산하고 있습니다'
     );
     await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
   }
@@ -695,9 +699,7 @@ async function enterDailyChallengeMode() {
     renderAll();
     trackAnalyticsView('daily', false);
   } finally {
-    if (isHell) {
-      hidePuzzleLoading();
-    }
+    hidePuzzleLoading();
   }
 }
 
@@ -1522,11 +1524,11 @@ async function handleNextStage(targetDifficulty = gameState.selectedDifficultyMo
     btnSkipStageEl.disabled = true;
   }
 
-  const isHell = targetDifficulty === 'hell';
-  if (isHell) {
+  const needsLoading = !isInfinitePuzzleReady(targetDifficulty);
+  if (needsLoading) {
     showPuzzleLoading(
-      '🔥 새로운 HELL 퍼즐 생성 중...',
-      '10회 이상 고난도 탈출 경로와 완충 데이터를 정밀 연산하고 있습니다'
+      `🔥 [${(DIFF_META[targetDifficulty]?.label || targetDifficulty).toUpperCase()}] 구역 생성 중...`,
+      '탈출 경로와 완충 데이터를 정밀 연산하고 있습니다'
     );
     await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
   }
@@ -1539,9 +1541,7 @@ async function handleNextStage(targetDifficulty = gameState.selectedDifficultyMo
     renderAll();
     trackAnalyticsView('infinite', false);
   } finally {
-    if (isHell) {
-      hidePuzzleLoading();
-    }
+    hidePuzzleLoading();
   }
 
   setTimeout(() => {
@@ -1588,8 +1588,11 @@ async function bootstrap() {
   await restoreAuthSession();
   syncAuthUI();
 
-  // 로비에 머무는 동안 백그라운드에서 난이도별 후보맵 바구니를 미리 채워둠
-  scheduleBackgroundRefill(3);
+  // 1. 일일 챌린지 오늘 맵 우선 백그라운드 사전 생성 (0ms 즉시 시작 보장)
+  warmupAllDailyChallenges();
+
+  // 2. 무한 모드 난이도별 바구니 백그라운드 사전 충전 (다음 문제 0ms 즉시 시작 보장)
+  scheduleBackgroundRefill(2);
 
   window.addEventListener('resize', () => {
     if (gameScreenEl && !gameScreenEl.hidden) {
@@ -1683,6 +1686,7 @@ async function bootstrap() {
       gameState.dailyDifficultyMode = btn.dataset.dailyDiff;
       syncLobbyDifficultyUI();
       lobbyDailyDiffDrawerEl.hidden = true;
+      warmupDailyChallenge(gameState.dailyDifficultyMode);
     });
   }
 
@@ -2004,17 +2008,21 @@ async function bootstrap() {
       if (!newDiff) return;
 
       hideHudPopover();
-      const isHell = newDiff === 'hell';
-      if (isHell) {
+      const isDaily = gameState.gameMode === 'daily';
+      const needsLoading = isDaily
+        ? !isDailyChallengeReady(newDiff)
+        : !isInfinitePuzzleReady(newDiff);
+
+      if (needsLoading) {
         showPuzzleLoading(
-          '🔥 HELL 구역 전환 및 맵 생성 중...',
-          '10회 이상 고난도 탈출 경로와 완충 데이터를 정밀 연산하고 있습니다'
+          `🔥 [${(DIFF_META[newDiff]?.label || newDiff).toUpperCase()}] 구역 전환 중...`,
+          '탈출 경로와 완충 데이터를 정밀 연산하고 있습니다'
         );
         await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
       }
 
       try {
-        if (gameState.gameMode === 'daily') {
+        if (isDaily) {
           gameState.dailyDifficultyMode = newDiff;
           syncLobbyDifficultyUI();
           await initGameState({ mode: 'daily', targetDifficulty: newDiff });
@@ -2030,9 +2038,7 @@ async function bootstrap() {
           trackAnalyticsView('infinite', false);
         }
       } finally {
-        if (isHell) {
-          hidePuzzleLoading();
-        }
+        hidePuzzleLoading();
       }
     });
   }
