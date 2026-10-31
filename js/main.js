@@ -27,8 +27,10 @@ import { evaluateRoundStatus } from './rules.js';
 import { buildSolverFeedback } from './solver.js';
 import {
   unlockAudio,
-  isMuted,
-  toggleMute,
+  isBGMMuted,
+  isSFXMuted,
+  toggleBGMMute,
+  toggleSFXMute,
   startBGM,
   stopBGM,
   playRobotSelect,
@@ -90,8 +92,10 @@ const btnBackLobbyEl = document.getElementById('btn-back-lobby');
 const hudModeTitleEl = document.getElementById('hud-mode-title');
 const btnChangeDifficultyEl = document.getElementById('btn-change-difficulty');
 const btnOpenLeaderboardEl = document.getElementById('btn-open-leaderboard');
-const btnSoundToggleLobbyEl = document.getElementById('btn-sound-toggle-lobby');
-const btnSoundToggleGameEl = document.getElementById('btn-sound-toggle-game');
+const btnBgmToggleLobbyEl = document.getElementById('btn-bgm-toggle-lobby');
+const btnSfxToggleLobbyEl = document.getElementById('btn-sfx-toggle-lobby');
+const btnBgmToggleGameEl = document.getElementById('btn-bgm-toggle-game');
+const btnSfxToggleGameEl = document.getElementById('btn-sfx-toggle-game');
 
 const boardWrapperEl = document.querySelector('.board-wrapper');
 const boardGridEl = document.getElementById('board-grid');
@@ -341,22 +345,21 @@ function showLobbyToast(message) {
 }
 
 function syncSoundUI() {
-  const muted = isMuted();
-  const icon = muted ? '🔇' : '🔊';
-  const label = muted ? '효과음 켜기' : '효과음 끄기';
+  const bgmMuted = isBGMMuted();
+  const sfxMuted = isSFXMuted();
 
-  if (btnSoundToggleLobbyEl) {
-    const iconEl = btnSoundToggleLobbyEl.querySelector('.sound-icon');
+  const updateBtn = (btn, muted, icon, labelBase) => {
+    if (!btn) return;
+    const iconEl = btn.querySelector('.sound-icon');
     if (iconEl) iconEl.textContent = icon;
-    btnSoundToggleLobbyEl.title = label;
-    btnSoundToggleLobbyEl.classList.toggle('is-muted', muted);
-  }
-  if (btnSoundToggleGameEl) {
-    const iconEl = btnSoundToggleGameEl.querySelector('.sound-icon');
-    if (iconEl) iconEl.textContent = icon;
-    btnSoundToggleGameEl.title = label;
-    btnSoundToggleGameEl.classList.toggle('is-muted', muted);
-  }
+    btn.title = `${labelBase} ${muted ? '켜기' : '끄기'}`;
+    btn.classList.toggle('is-muted', muted);
+  };
+
+  updateBtn(btnBgmToggleLobbyEl, bgmMuted, '🎵', '배경음악');
+  updateBtn(btnBgmToggleGameEl, bgmMuted, '🎵', '배경음악');
+  updateBtn(btnSfxToggleLobbyEl, sfxMuted, '🔊', '효과음');
+  updateBtn(btnSfxToggleGameEl, sfxMuted, '🔊', '효과음');
 }
 
 function syncInGameHeaderByMode() {
@@ -1292,27 +1295,31 @@ function bootstrap() {
     hideHudPopover();
   });
 
-  // 효과음(SFX) 토글 이벤트 바인딩
-  const handleToggleSound = () => {
+  // BGM / SFX 개별 토글 이벤트 바인딩
+  const handleToggleBGM = () => {
     unlockAudio();
-    const muted = toggleMute();
+    toggleBGMMute();
+    syncSoundUI();
+  };
+
+  const handleToggleSFX = () => {
+    unlockAudio();
+    const muted = toggleSFXMute();
     syncSoundUI();
     if (!muted) {
       playButtonClick();
     }
   };
 
-  if (btnSoundToggleLobbyEl) {
-    btnSoundToggleLobbyEl.addEventListener('click', handleToggleSound);
-  }
-  if (btnSoundToggleGameEl) {
-    btnSoundToggleGameEl.addEventListener('click', handleToggleSound);
-  }
+  if (btnBgmToggleLobbyEl) btnBgmToggleLobbyEl.addEventListener('click', handleToggleBGM);
+  if (btnBgmToggleGameEl) btnBgmToggleGameEl.addEventListener('click', handleToggleBGM);
+  if (btnSfxToggleLobbyEl) btnSfxToggleLobbyEl.addEventListener('click', handleToggleSFX);
+  if (btnSfxToggleGameEl) btnSfxToggleGameEl.addEventListener('click', handleToggleSFX);
 
   // 모바일/브라우저 첫 인터랙션 시 Web Audio API 언락 및 BGM 시작 (Autoplay 정책 대응)
   const handleFirstAudioUnlock = () => {
     unlockAudio();
-    if (!isMuted()) {
+    if (!isBGMMuted()) {
       startBGM();
     }
     window.removeEventListener('pointerdown', handleFirstAudioUnlock);

@@ -147,6 +147,12 @@ body {
   width: 100%;
 }
 
+.sound-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .sound-toggle-btn {
   display: inline-flex;
   align-items: center;
@@ -174,8 +180,10 @@ body {
 }
 
 .sound-toggle-btn.is-muted {
-  opacity: 0.55;
+  opacity: 0.42;
   filter: grayscale(1);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
 }
 
 .lobby-sector-tag {
