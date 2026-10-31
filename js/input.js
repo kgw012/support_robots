@@ -67,6 +67,7 @@ export function bindInputEvents(
   }
 
   // 1. 모바일 터치 이벤트 (touchstart / touchmove / touchend)
+  // passive: false를 유지하여 터치 이동 시 브라우저가 네이티브 뒤로가기 제스처를 시작하지 못하도록 제어권을 확보합니다.
   boardEl.addEventListener(
     'touchstart',
     (e) => {
@@ -81,21 +82,21 @@ export function bindInputEvents(
         onSelectRobot(touchedRobotColor);
       }
     },
-    { passive: true }
-  );
-
-  boardEl.addEventListener(
-    'touchmove',
-    (e) => {
-      // 보드판 위에서 로봇을 미끄러뜨리는 동안 페이지 세로 스크롤만 방지
-      if (startX !== null && e.cancelable) {
-        e.preventDefault();
-      }
-    },
     { passive: false }
   );
 
-  boardEl.addEventListener(
+  // 보드판 위 및 보드에서 시작된 드래그 중에는 브라우저 뒤로가기 및 스크롤을 즉시 차단
+  const handleTouchMove = (e) => {
+    if (startX !== null && e.cancelable) {
+      e.preventDefault();
+    }
+  };
+
+  boardEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+  window.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+  // 손가락이 보드 밖으로 살짝 벗어나더라도 정상적으로 미끄러짐 이동을 완료할 수 있도록 window에 바인딩
+  window.addEventListener(
     'touchend',
     (e) => {
       if (startX === null || startY === null) return;
@@ -110,10 +111,13 @@ export function bindInputEvents(
 
       const direction = resolveSwipeDirection(dx, dy);
       if (direction && typeof onMoveDirection === 'function') {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
         onMoveDirection(direction);
       }
     },
-    { passive: true }
+    { passive: false }
   );
 
   // 2. 데스크톱 마우스 드래그 지원 (mousedown / mouseup)
