@@ -200,7 +200,28 @@ body {
   color: #ffffff;
   font-size: 0.84rem;
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.popover-diff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin-top: 4px;
+}
+
+.popover-diff-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.popover-diff-item .difficulty-badge {
+  min-width: 62px;
+  text-align: center;
 }
 
 .target-badge {

@@ -44,9 +44,24 @@ const HUD_INFO_CONTENT = Object.freeze({
   `,
   difficulty: `
     <strong>난이도 분류 기준 (최단 이동 횟수)</strong>
-    최단 해결 이동 횟수에 따라 난이도가 나뉩니다.<br/>
-    • <b>EASY</b> : 1 ~ 4회 &nbsp;|&nbsp; • <b>NORMAL</b> : 5 ~ 8회<br/>
-    • <b>HARD</b> : 9 ~ 11회 &nbsp;|&nbsp; • <b>HELL</b> : 12회 이상
+    <div class="popover-diff-grid">
+      <div class="popover-diff-item">
+        <span class="difficulty-badge diff-easy">EASY</span>
+        <span>1 ~ 4회</span>
+      </div>
+      <div class="popover-diff-item">
+        <span class="difficulty-badge diff-normal">NORMAL</span>
+        <span>5 ~ 8회</span>
+      </div>
+      <div class="popover-diff-item">
+        <span class="difficulty-badge diff-hard">HARD</span>
+        <span>9 ~ 11회</span>
+      </div>
+      <div class="popover-diff-item">
+        <span class="difficulty-badge diff-hell">HELL</span>
+        <span>12회 이상</span>
+      </div>
+    </div>
   `,
 });
 
