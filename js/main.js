@@ -32,6 +32,46 @@ const btnResetEl = document.getElementById('btn-reset');
 const btnSkipStageEl = document.getElementById('btn-skip-stage');
 const btnClearRetryEl = document.getElementById('btn-clear-retry');
 const btnClearNextEl = document.getElementById('btn-clear-next');
+const hudTargetBadgeEl = document.getElementById('hud-target-badge');
+const hudDifficultyBadgeEl = document.getElementById('hud-difficulty-badge');
+const hudInfoPopoverEl = document.getElementById('hud-info-popover');
+
+const HUD_INFO_CONTENT = Object.freeze({
+  target: `
+    <strong>목표 탈출구 안내</strong>
+    탈출구와 같은 색상의 로봇을 해당 위치에 정지시키세요. (다색 탈출구는 모든 로봇 가능)<br/>
+    ※ 출발지에서 직진 한 번으로 도달하는 것은 무효이며, 최소 1회 이상 벽이나 다른 로봇에 부딪혀 90도 방향 전환 후 들어가야 합니다.
+  `,
+  difficulty: `
+    <strong>난이도 분류 기준 (최단 이동 횟수)</strong>
+    최단 해결 이동 횟수에 따라 난이도가 나뉩니다.<br/>
+    • <b>EASY</b> : 1 ~ 4회 &nbsp;|&nbsp; • <b>NORMAL</b> : 5 ~ 8회<br/>
+    • <b>HARD</b> : 9 ~ 11회 &nbsp;|&nbsp; • <b>HELL</b> : 12회 이상
+  `,
+});
+
+let activePopoverType = null;
+
+function showHudPopover(type) {
+  if (!hudInfoPopoverEl || !HUD_INFO_CONTENT[type]) return;
+  activePopoverType = type;
+  hudInfoPopoverEl.innerHTML = HUD_INFO_CONTENT[type];
+  hudInfoPopoverEl.hidden = false;
+}
+
+function hideHudPopover() {
+  if (!hudInfoPopoverEl) return;
+  activePopoverType = null;
+  hudInfoPopoverEl.hidden = true;
+}
+
+function toggleHudPopover(type) {
+  if (activePopoverType === type && !hudInfoPopoverEl.hidden) {
+    hideHudPopover();
+  } else {
+    showHudPopover(type);
+  }
+}
 
 /**
  * 조작할 로봇 색상을 변경합니다.
@@ -175,6 +215,32 @@ function bootstrap() {
   if (btnClearNextEl) {
     btnClearNextEl.addEventListener('click', handleNextStage);
   }
+
+  // 상단 목표 배지 / 난이도 배지 호버 및 클릭(모바일 탭) 시 설명 표시
+  const bindBadgeInfo = (el, type) => {
+    if (!el) return;
+    el.addEventListener('mouseenter', () => {
+      if (window.matchMedia('(hover: hover)').matches) {
+        showHudPopover(type);
+      }
+    });
+    el.addEventListener('mouseleave', () => {
+      if (window.matchMedia('(hover: hover)').matches) {
+        hideHudPopover();
+      }
+    });
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleHudPopover(type);
+    });
+  };
+
+  bindBadgeInfo(hudTargetBadgeEl, 'target');
+  bindBadgeInfo(hudDifficultyBadgeEl, 'difficulty');
+
+  document.addEventListener('click', () => {
+    hideHudPopover();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);

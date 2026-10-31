@@ -81,6 +81,10 @@ const MANGLE_IDENTIFIERS = [
   'handleUndo',
   'handleReset',
   'handleNextStage',
+  'HUD_INFO_CONTENT',
+  'showHudPopover',
+  'hideHudPopover',
+  'toggleHudPopover',
   'renderAll',
   'bootstrap',
 ];

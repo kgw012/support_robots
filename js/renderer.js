@@ -252,12 +252,12 @@ export function renderHUD(state) {
 
   if (difficultyBadgeEl && state.difficulty) {
     difficultyBadgeEl.textContent = state.difficulty.label;
-    difficultyBadgeEl.className = `difficulty-badge diff-${state.difficulty.id}`;
+    difficultyBadgeEl.className = `difficulty-badge diff-${state.difficulty.id} is-interactive`;
   }
 
   if (targetBadgeEl && state.activeTarget) {
     const { color } = state.activeTarget;
-    targetBadgeEl.className = `target-badge color-${color}`;
+    targetBadgeEl.className = `target-badge color-${color} is-interactive`;
     targetBadgeEl.innerHTML = `
       ${getTargetSymbolSVG(color)}
       <span>목표: ${COLOR_LABELS_KO[color]} 탈출구</span>

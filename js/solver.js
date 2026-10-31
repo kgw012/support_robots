@@ -7,10 +7,11 @@
  *    - 수학적 최소 해결 이동 횟수(minMoves)
  *    - 해당 최단 이동 횟수 내에서 달성 가능한 최대 로봇 간 완충 충돌 횟수(maxCollisions)
  *    를 동시에 계산합니다 (최소 1회 90도 방향 전환 Ricochet 필수 규칙 반영).
- * 2. 최단 해결 횟수에 따른 난이도 자동 분류:
+ * 2. 최단 해결 횟수에 따른 난이도 자동 분류 (4단계):
  *    - Easy: 1~4회
- *    - Hard: 5~9회
- *    - Hell: 10회 이상
+ *    - Normal: 5~8회
+ *    - Hard: 9~11회
+ *    - Hell: 12회 이상
  * 3. 6단계 커스텀 승리 우선권 타이 브레이커 비교 함수 및 수치 비노출 힌트 피드백 루틴 제공
  */
 
@@ -19,14 +20,15 @@ import { PLAYABLE_ROBOTS, isCenterClosedCell } from './state.js';
 
 export const DIFFICULTY_TIERS = Object.freeze({
   EASY: { id: 'easy', label: 'EASY', min: 1, max: 4 },
-  HARD: { id: 'hard', label: 'HARD', min: 5, max: 9 },
-  HELL: { id: 'hell', label: 'HELL', min: 10, max: Infinity },
+  NORMAL: { id: 'normal', label: 'NORMAL', min: 5, max: 8 },
+  HARD: { id: 'hard', label: 'HARD', min: 9, max: 11 },
+  HELL: { id: 'hell', label: 'HELL', min: 12, max: Infinity },
 });
 
 /**
- * 최단 해결 이동 횟수(minMoves)에 따라 난이도를 분류합니다 (7단계 규격).
+ * 최단 해결 이동 횟수(minMoves)에 따라 난이도를 4단계로 분류합니다.
  * @param {number|null} minMoves 솔버가 계산한 최단 이동 횟수
- * @returns {{ id: 'easy'|'hard'|'hell'|'unsolved', label: string }}
+ * @returns {{ id: 'easy'|'normal'|'hard'|'hell'|'unsolved', label: string }}
  */
 export function classifyDifficulty(minMoves) {
   if (typeof minMoves !== 'number' || minMoves < 1 || !Number.isFinite(minMoves)) {
@@ -35,7 +37,10 @@ export function classifyDifficulty(minMoves) {
   if (minMoves <= 4) {
     return { id: DIFFICULTY_TIERS.EASY.id, label: DIFFICULTY_TIERS.EASY.label };
   }
-  if (minMoves <= 9) {
+  if (minMoves <= 8) {
+    return { id: DIFFICULTY_TIERS.NORMAL.id, label: DIFFICULTY_TIERS.NORMAL.label };
+  }
+  if (minMoves <= 11) {
     return { id: DIFFICULTY_TIERS.HARD.id, label: DIFFICULTY_TIERS.HARD.label };
   }
   return { id: DIFFICULTY_TIERS.HELL.id, label: DIFFICULTY_TIERS.HELL.label };

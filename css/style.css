@@ -52,6 +52,7 @@ body {
 
 /* 상단 헤더 및 상태 표시줄 */
 .hud-header {
+  position: relative;
   background: var(--bg-panel);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--border-radius);
@@ -59,6 +60,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  z-index: 30;
 }
 
 .hud-top-row {
@@ -141,6 +143,12 @@ body {
   border: 1px solid rgba(74, 222, 128, 0.35);
 }
 
+.difficulty-badge.diff-normal {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+}
+
 .difficulty-badge.diff-hard {
   background: rgba(245, 158, 11, 0.2);
   color: #fbbf24;
@@ -151,6 +159,48 @@ body {
   background: rgba(239, 68, 68, 0.22);
   color: #f87171;
   border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.is-interactive {
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.is-interactive:hover {
+  filter: brightness(1.15);
+}
+
+.is-interactive:active {
+  transform: scale(0.97);
+}
+
+/* 목표 / 난이도 설명 툴팁 팝오버 */
+.hud-info-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: rgba(15, 20, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9px;
+  padding: 11px 14px;
+  font-size: 0.8rem;
+  color: #e2e8f0;
+  line-height: 1.55;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+}
+
+.hud-info-popover[hidden] {
+  display: none !important;
+}
+
+.hud-info-popover strong {
+  color: #ffffff;
+  font-size: 0.84rem;
+  display: block;
+  margin-bottom: 4px;
 }
 
 .target-badge {

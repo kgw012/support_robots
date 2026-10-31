@@ -33,8 +33,24 @@
       </div>
       <div class="hud-stats-row">
         <div class="hud-goal-group">
-          <div id="hud-target-badge" class="target-badge">목표 로딩 중...</div>
-          <span id="hud-difficulty-badge" class="difficulty-badge">EASY</span>
+          <div
+            id="hud-target-badge"
+            class="target-badge is-interactive"
+            role="button"
+            tabindex="0"
+            aria-label="목표 탈출구 규칙 설명 보기"
+          >
+            목표 로딩 중...
+          </div>
+          <span
+            id="hud-difficulty-badge"
+            class="difficulty-badge is-interactive"
+            role="button"
+            tabindex="0"
+            aria-label="난이도 기준 설명 보기"
+          >
+            EASY
+          </span>
         </div>
         <div class="stats-Counters">
           <div class="stat-box" title="총 이동 횟수 (낮을수록 우수)">
@@ -47,6 +63,7 @@
           </div>
         </div>
       </div>
+      <div id="hud-info-popover" class="hud-info-popover" hidden></div>
     </header>
 
     <!-- 16x16 게임 보드 영역 -->
