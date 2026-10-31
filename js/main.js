@@ -105,6 +105,35 @@ const HUD_INFO_CONTENT = Object.freeze({
 
 let activePopoverType = null;
 let lobbyToastTimer = null;
+let sessionStageSeq = 0;
+
+/**
+ * Vercel Web Analytics가 SPA 내 화면 전환 및 스테이지 진행을 감지해
+ * 활성 접속자(online) 상태를 유지하도록 URL 히스토리 및 라우트 신호를 갱신합니다.
+ * @param {'lobby' | 'infinite'} viewMode
+ * @param {boolean} [pushEntry=false]
+ */
+function trackAnalyticsView(viewMode, pushEntry = false) {
+  if (typeof window === 'undefined' || !window.history) return;
+  try {
+    let nextUrl = '/';
+    if (viewMode === 'infinite') {
+      sessionStageSeq += 1;
+      const diff = gameState.selectedDifficultyMode || 'normal';
+      nextUrl = `/?mode=infinite&diff=${diff}&s=${sessionStageSeq}`;
+    }
+    if (pushEntry) {
+      window.history.pushState({ viewMode }, '', nextUrl);
+    } else {
+      window.history.replaceState({ viewMode }, '', nextUrl);
+      window.dispatchEvent(
+        new PopStateEvent('popstate', { state: { viewMode, synthetic: true } })
+      );
+    }
+  } catch (_) {
+    // 샌드박스나 file:// 환경 예외 무시
+  }
+}
 
 function buildChangeDifficultyPopoverHTML() {
   const currentDiff = gameState.selectedDifficultyMode || 'normal';
@@ -191,13 +220,17 @@ function enterInfiniteMode() {
 
   initGameState({ targetDifficulty: gameState.selectedDifficultyMode });
   renderAll();
+  trackAnalyticsView('infinite', true);
 }
 
-function returnToLobby() {
+function returnToLobby(fromPopState = false) {
   hideHudPopover();
   syncLobbyDifficultyUI();
   if (gameScreenEl) gameScreenEl.hidden = true;
   if (lobbyScreenEl) lobbyScreenEl.hidden = false;
+  if (!fromPopState) {
+    trackAnalyticsView('lobby', false);
+  }
 }
 
 /**
@@ -309,6 +342,7 @@ function handleNextStage(targetDifficulty = gameState.selectedDifficultyMode) {
   initGameState({ targetDifficulty });
   syncLobbyDifficultyUI();
   renderAll();
+  trackAnalyticsView('infinite', false);
 
   setTimeout(() => {
     isNextStageLocked = false;
@@ -396,8 +430,22 @@ function bootstrap() {
   }
 
   if (btnBackLobbyEl) {
-    btnBackLobbyEl.addEventListener('click', returnToLobby);
+    btnBackLobbyEl.addEventListener('click', () => returnToLobby(false));
   }
+
+  window.addEventListener('popstate', (e) => {
+    if (e.state && e.state.synthetic) return;
+    if (gameScreenEl && !gameScreenEl.hidden) {
+      returnToLobby(true);
+    }
+  });
+
+  // 플레이 중 4분마다 활성 세션 신호를 갱신하여 장시간 고민 중에도 online 상태 유지
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && gameScreenEl && !gameScreenEl.hidden) {
+      trackAnalyticsView('infinite', false);
+    }
+  }, 240000);
 
   const closeHowtoModal = () => {
     if (howtoModalEl) howtoModalEl.hidden = true;
@@ -462,6 +510,7 @@ function bootstrap() {
       hideHudPopover();
       initGameState({ targetDifficulty: newDiff });
       renderAll();
+      trackAnalyticsView('infinite', false);
     });
   }
 

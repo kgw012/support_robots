@@ -88,6 +88,7 @@ const MANGLE_IDENTIFIERS = [
   'handleNextStage',
   'HUD_INFO_CONTENT',
   'DIFF_META',
+  'trackAnalyticsView',
   'buildChangeDifficultyPopoverHTML',
   'syncLobbyDifficultyUI',
   'showLobbyToast',
