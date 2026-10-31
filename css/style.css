@@ -50,6 +50,7 @@ body {
   gap: 10px;
 }
 
+[hidden],
 .lobby-screen[hidden],
 .game-screen[hidden],
 .lobby-diff-drawer[hidden],
@@ -60,7 +61,9 @@ body {
 .auth-user-view[hidden],
 .auth-feedback-msg[hidden],
 .top-next-btn[hidden],
-.clear-mode-reward[hidden] {
+.clear-mode-reward[hidden],
+.tutorial-guide-card[hidden],
+.tutorial-gesture-layer[hidden] {
   display: none !important;
 }
 
@@ -154,6 +157,7 @@ body {
 }
 
 .sound-toggle-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -179,11 +183,37 @@ body {
   transform: scale(0.92);
 }
 
+.sound-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .sound-toggle-btn.is-muted {
-  opacity: 0.42;
-  filter: grayscale(1);
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.sound-toggle-btn.is-muted .sound-icon {
+  opacity: 0.55;
+  filter: grayscale(0.8);
+}
+
+/* 음소거 시 아이콘을 대각선으로 가로지르는 빨간색 빗금 */
+.sound-toggle-btn.is-muted .sound-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 135%;
+  height: 2.4px;
+  background: #ef4444;
+  box-shadow: 0 0 5px rgba(239, 68, 68, 0.9), 0 1px 2px rgba(0, 0, 0, 0.8);
+  border-radius: 2px;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  pointer-events: none;
 }
 
 .lobby-sector-tag {

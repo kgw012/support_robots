@@ -22,8 +22,11 @@ import {
   isTutorialFinalStep,
   resetTutorialProgress,
   getTutorialGestureGuide,
+  getTutorialExpectedMove,
   getStep3Phase,
   setStep3Phase,
+  getStep4Phase,
+  setStep4Phase,
 } from './tutorial.js';
 import {
   syncBoardPixelSize,
@@ -104,8 +107,6 @@ const lobbyToastEl = document.getElementById('lobby-toast');
 
 const btnBackLobbyEl = document.getElementById('btn-back-lobby');
 const hudModeTitleEl = document.getElementById('hud-mode-title');
-const btnIngameHelpEl = document.getElementById('btn-ingame-help');
-const btnChangeDifficultyEl = document.getElementById('btn-change-difficulty');
 const btnOpenLeaderboardEl = document.getElementById('btn-open-leaderboard');
 
 const tutorialGuideCardEl = document.getElementById('tutorial-guide-card');
@@ -231,11 +232,18 @@ function updateTutorialGestureGuide() {
   }
 
   const step = getCurrentTutorialStep();
-  const guide = getTutorialGestureGuide(step.stepIndex, gameState.robots, getStep3Phase());
+  const guide = getTutorialGestureGuide(step.stepIndex, gameState.robots, getStep4Phase());
 
   if (!guide.active) {
     tutorialGestureLayerEl.hidden = true;
     return;
+  }
+
+  // 가이드 대상 로봇으로 선택 상태 자동 동기화
+  if (guide.robotColor && gameState.selectedRobot !== guide.robotColor) {
+    gameState.selectedRobot = guide.robotColor;
+    updateRobotPositions(robotsLayerEl, gameState);
+    renderHUD(gameState);
   }
 
   const boardWidth = boardGridEl.clientWidth;
@@ -277,6 +285,7 @@ function trackAnalyticsView(viewMode, pushEntry = false) {
 
 function buildChangeDifficultyPopoverHTML() {
   const isDaily = gameState.gameMode === 'daily';
+  const isTutorial = gameState.gameMode === 'tutorial';
   const currentDiff = isDaily
     ? gameState.dailyDifficultyMode || 'normal'
     : gameState.selectedDifficultyMode || 'normal';
@@ -284,8 +293,16 @@ function buildChangeDifficultyPopoverHTML() {
   const items = Object.entries(DIFF_META)
     .map(([diffId, meta]) => {
       const activeClass = diffId === currentDiff ? 'is-active' : '';
+      if (isTutorial) {
+        return `
+          <div class="popover-diff-item ${activeClass}">
+            <span class="difficulty-badge diff-${diffId}">${meta.label}</span>
+            <span>${meta.range}</span>
+          </div>
+        `;
+      }
       return `
-        <button type="button" class="popover-diff-select-btn ${activeClass}" data-select-diff="${diffId}">
+        <button type="button" class="popover-diff-select-btn ${activeClass}" data-select-diff="${diffId}" title="${meta.label} 난이도로 변경">
           <span class="difficulty-badge diff-${diffId}">${meta.label}</span>
           <span>${meta.range}</span>
         </button>
@@ -293,12 +310,22 @@ function buildChangeDifficultyPopoverHTML() {
     })
     .join('');
 
-  const headerTitle = isDaily
-    ? '일일 챌린지 난이도 변경 (오늘의 난이도별 문제 이동)'
-    : '무한 모드 난이도 변경 (선택 시 즉시 새 문제 출제)';
+  let headerTitle = '난이도 분류 기준 및 변경';
+  let descText = '수학적 최단 해결 횟수에 따라 분류됩니다. 원하는 난이도를 클릭하면 즉시 변경됩니다.';
+  if (isDaily) {
+    headerTitle = '일일 챌린지 난이도 변경';
+    descText = '클릭하면 오늘의 해당 난이도 문제로 즉시 이동합니다.';
+  } else if (isTutorial) {
+    headerTitle = '난이도 분류 기준 (최단 이동 횟수)';
+    descText = '수학적 최단 해결 횟수에 따라 4단계로 분류됩니다 (튜토리얼은 단계별 고정).';
+  } else {
+    headerTitle = '무한 모드 난이도 변경';
+    descText = '클릭하면 선택한 난이도의 고품질 새 문제가 즉시 출제됩니다.';
+  }
 
   return `
     <strong>${headerTitle}</strong>
+    <p style="margin: 4px 0 8px; font-size: 0.76rem; color: #94a3b8; line-height: 1.35;">${descText}</p>
     <div class="popover-diff-grid">
       ${items}
     </div>
@@ -307,7 +334,7 @@ function buildChangeDifficultyPopoverHTML() {
 
 function showHudPopover(type) {
   if (!hudInfoPopoverEl) return;
-  if (type === 'changeDiff') {
+  if (type === 'changeDiff' || type === 'difficulty') {
     activePopoverType = type;
     hudInfoPopoverEl.innerHTML = buildChangeDifficultyPopoverHTML();
     hudInfoPopoverEl.hidden = false;
@@ -444,9 +471,6 @@ function syncInGameHeaderByMode() {
   if (btnOpenLeaderboardEl) {
     btnOpenLeaderboardEl.hidden = isTutorial;
   }
-  if (btnChangeDifficultyEl) {
-    btnChangeDifficultyEl.hidden = isTutorial;
-  }
   if (btnSkipStageEl) {
     btnSkipStageEl.hidden = isDaily;
     const labelSpan = btnSkipStageEl.querySelector('span');
@@ -455,9 +479,16 @@ function syncInGameHeaderByMode() {
     }
   }
 
-  // 튜토리얼 안내 카드 노출 제어
+  // 튜토리얼 안내 카드 및 제스처 레이어 노출 제어 (무한 모드/일일 챌린지 오염 방어)
   if (tutorialGuideCardEl) {
     tutorialGuideCardEl.hidden = !isTutorial;
+    tutorialGuideCardEl.style.display = isTutorial ? '' : 'none';
+  }
+  if (tutorialGestureLayerEl && !isTutorial) {
+    tutorialGestureLayerEl.hidden = true;
+  }
+  if (!isTutorial) {
+    isTutorialUndoLocked = false;
   }
 
   if (btnClearNextEl) {
@@ -481,6 +512,9 @@ function applyTutorialStep(step) {
   if (btnUndoEl) {
     btnUndoEl.classList.remove('is-pulse-focus');
   }
+  if (btnClearRetryEl) {
+    btnClearRetryEl.classList.remove('is-pulse-focus');
+  }
 
   const fixedBoard = createBoardData({ quadrantOrder: ['A', 'B', 'C', 'D'] });
   const target = fixedBoard.targets[step.targetIndex];
@@ -492,6 +526,16 @@ function applyTutorialStep(step) {
     activeTarget: target,
     minMoves: step.minMoves,
   });
+
+  const initialExpected = getTutorialExpectedMove(
+    step.stepIndex,
+    gameState.robots,
+    getStep3Phase(),
+    getStep4Phase()
+  );
+  if (initialExpected && initialExpected.robotColor) {
+    gameState.selectedRobot = initialExpected.robotColor;
+  }
 
   updateTutorialStepCard();
 
@@ -527,6 +571,15 @@ function enterInfiniteMode() {
   if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
   if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
 
+  if (tutorialGuideCardEl) {
+    tutorialGuideCardEl.hidden = true;
+    tutorialGuideCardEl.style.display = 'none';
+  }
+  if (tutorialGestureLayerEl) {
+    tutorialGestureLayerEl.hidden = true;
+  }
+  isTutorialUndoLocked = false;
+
   initGameState({
     mode: 'infinite',
     targetDifficulty: gameState.selectedDifficultyMode,
@@ -552,6 +605,15 @@ function enterDailyChallengeMode() {
   if (gameScreenEl) gameScreenEl.hidden = false;
   if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
   if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
+
+  if (tutorialGuideCardEl) {
+    tutorialGuideCardEl.hidden = true;
+    tutorialGuideCardEl.style.display = 'none';
+  }
+  if (tutorialGestureLayerEl) {
+    tutorialGestureLayerEl.hidden = true;
+  }
+  isTutorialUndoLocked = false;
 
   initGameState({
     mode: 'daily',
@@ -579,6 +641,7 @@ function returnToLobby(fromPopState = false) {
   }
   if (tutorialGuideCardEl) {
     tutorialGuideCardEl.hidden = true;
+    tutorialGuideCardEl.style.display = 'none';
   }
   syncLobbyDifficultyUI();
   syncAuthUI();
@@ -888,7 +951,15 @@ async function handleModeClearSubmission(solverFeedback) {
   if (gameState.gameMode === 'tutorial') {
     const step = getCurrentTutorialStep();
     clearModeRewardEl.hidden = false;
-    clearModeRewardEl.textContent = `🎯 ${step.clearMessage}`;
+    if (step.stepIndex === 3) {
+      if (gameState.collisionCount > 0) {
+        clearModeRewardEl.innerHTML = `🌟 <strong>완충 성공! (이동 ${gameState.moveCount}회 / 완충 ${gameState.collisionCount}회)</strong><br>동료 로봇으로 충격을 완벽히 흡수했습니다! 같은 2회 이동이라도 완충을 활용할수록 리더보드 최우선 순위가 부여됩니다.`;
+      } else {
+        clearModeRewardEl.innerHTML = `⚠️ <strong>외벽 충돌 (이동 ${gameState.moveCount}회 / 완충 0회)</strong><br>지반 충격을 분산하지 못했습니다. 더 좋은 풀이(동료 완충)가 있습니다!<br>하단의 [다시 연습]을 눌러 완충으로 도전해보세요!`;
+      }
+    } else {
+      clearModeRewardEl.textContent = `🎯 ${step.clearMessage}`;
+    }
     return;
   }
 
@@ -1052,7 +1123,27 @@ async function handleShareDailyRecord() {
  */
 function handleSelectRobot(color) {
   if (gameState.isCleared) return;
-  if (!color || gameState.selectedRobot === color) return;
+  if (!color) return;
+
+  if (gameState.gameMode === 'tutorial') {
+    const step = getCurrentTutorialStep();
+    const expected = getTutorialExpectedMove(
+      step.stepIndex,
+      gameState.robots,
+      getStep3Phase(),
+      getStep4Phase()
+    );
+    if (expected && expected.robotColor !== color) {
+      playWallHit();
+      renderRuleFeedback({
+        status: 'INVALID',
+        message: '💡 손가락 제스처가 가리키는 로봇을 움직여주세요!',
+      });
+      return;
+    }
+  }
+
+  if (gameState.selectedRobot === color) return;
   gameState.selectedRobot = color;
   playRobotSelect();
   updateRobotPositions(robotsLayerEl, gameState);
@@ -1066,7 +1157,7 @@ function handleSelectRobot(color) {
 function handleMoveDirection(direction) {
   if (gameState.isCleared) return;
 
-  // 3단계 직진 무효 상태에서는 되돌리기(Undo)를 누르기 전까지 다른 조작을 잠금
+  // 4단계 직진 무효 상태에서는 되돌리기(Undo)를 누르기 전까지 다른 조작을 잠금
   if (isTutorialUndoLocked) {
     playWallHit();
     renderRuleFeedback({
@@ -1074,6 +1165,42 @@ function handleMoveDirection(direction) {
       message: '⚠️ 직진 도달 무효! 하단의 [되돌리기] 버튼을 눌러 출발 위치로 돌아가세요.',
     });
     return;
+  }
+
+  // 튜토리얼 모드: 가이드된 로봇 및 가이드된 방향만 엄격히 허용
+  if (gameState.gameMode === 'tutorial') {
+    const step = getCurrentTutorialStep();
+    const expected = getTutorialExpectedMove(
+      step.stepIndex,
+      gameState.robots,
+      getStep3Phase(),
+      getStep4Phase()
+    );
+    if (expected) {
+      // 다른 곳을 스와이프했더라도 조작 대상을 expected 로봇으로 자동 보정
+      if (gameState.selectedRobot !== expected.robotColor) {
+        gameState.selectedRobot = expected.robotColor;
+        updateRobotPositions(robotsLayerEl, gameState);
+        renderHUD(gameState);
+      }
+
+      // 가이드된 방향이 아닌 경우 차단!
+      if (direction !== expected.direction) {
+        playWallHit();
+        const dirKoreanMap = {
+          UP: '위(↑)',
+          RIGHT: '오른쪽(→)',
+          DOWN: '아래(↓)',
+          LEFT: '왼쪽(←)',
+        };
+        const targetDirName = dirKoreanMap[expected.direction] || expected.direction;
+        renderRuleFeedback({
+          status: 'INVALID',
+          message: `💡 손가락 안내를 따라 ${targetDirName} 방향으로 밀어주세요!`,
+        });
+        return;
+      }
+    }
   }
 
   const robotColor = gameState.selectedRobot;
@@ -1129,17 +1256,51 @@ function handleMoveDirection(direction) {
     if (isTutorial) {
       const step = getCurrentTutorialStep();
       const isFinal = isTutorialFinalStep();
-      if (clearTitleEl) {
-        clearTitleEl.textContent = step.clearTitle;
+
+      if (step.stepIndex === 3) {
+        if (gameState.collisionCount === 0) {
+          // 외벽 충돌 클리어: 더 좋은 풀이 유도를 위해 [다음 단계로] 숨기고 [다시 연습] 강조!
+          if (clearTitleEl) {
+            clearTitleEl.textContent = '⚠️ 외벽 충돌 (완충 0회)';
+          }
+          if (btnClearNextEl) {
+            btnClearNextEl.hidden = true;
+          }
+          if (btnClearRetryEl) {
+            btnClearRetryEl.hidden = false;
+            btnClearRetryEl.textContent = '다시 연습 (완충 도전)';
+            btnClearRetryEl.classList.add('is-pulse-focus');
+          }
+        } else {
+          // 로봇 완충 성공: 3단계 진짜 성공! [다음 단계로] 활성화!
+          if (clearTitleEl) {
+            clearTitleEl.textContent = '🎉 3단계 성공!';
+          }
+          if (btnClearNextEl) {
+            btnClearNextEl.hidden = false;
+            btnClearNextEl.textContent = '다음 단계로 ▸';
+          }
+          if (btnClearRetryEl) {
+            btnClearRetryEl.hidden = false;
+            btnClearRetryEl.textContent = '다시 연습';
+            btnClearRetryEl.classList.remove('is-pulse-focus');
+          }
+        }
+      } else {
+        if (clearTitleEl) {
+          clearTitleEl.textContent = step.clearTitle;
+        }
+        if (btnClearNextEl) {
+          btnClearNextEl.textContent = isFinal ? '메인 로비로' : '다음 단계로 ▸';
+        }
+        if (btnClearRetryEl) {
+          btnClearRetryEl.hidden = isFinal;
+          btnClearRetryEl.textContent = '다시 연습';
+          btnClearRetryEl.classList.remove('is-pulse-focus');
+        }
       }
+
       if (btnClearShareEl) btnClearShareEl.hidden = true;
-      if (btnClearNextEl) {
-        btnClearNextEl.textContent = isFinal ? '메인 로비로' : '다음 단계로 ▸';
-      }
-      if (btnClearRetryEl) {
-        btnClearRetryEl.hidden = isFinal;
-        btnClearRetryEl.textContent = '다시 연습';
-      }
     } else {
       if (clearTitleEl) {
         clearTitleEl.textContent = '구조 성공!';
@@ -1179,10 +1340,10 @@ function handleMoveDirection(direction) {
     return;
   }
 
-  // 3단계에서 직진 도달 무효 발생 시 되돌리기(Undo) 버튼 강제 포커싱 및 우회 안내 준비
+  // 4단계에서 직진 도달 무효 발생 시 되돌리기(Undo) 버튼 강제 포커싱 및 우회 안내 준비
   if (evaluation.status === 'INVALID_STRAIGHT') {
     if (gameState.gameMode === 'tutorial') {
-      setStep3Phase('undo_required');
+      setStep4Phase('undo_required');
       isTutorialUndoLocked = true;
       if (btnUndoEl) btnUndoEl.classList.add('is-pulse-focus');
       if (tutorialGestureLayerEl) tutorialGestureLayerEl.hidden = true;
@@ -1203,8 +1364,8 @@ function handleUndo() {
   if (isTutorialUndoLocked) {
     isTutorialUndoLocked = false;
     if (btnUndoEl) btnUndoEl.classList.remove('is-pulse-focus');
-    if (gameState.gameMode === 'tutorial' && getCurrentTutorialStep().stepIndex === 3) {
-      setStep3Phase('detour');
+    if (gameState.gameMode === 'tutorial' && getCurrentTutorialStep().stepIndex === 4) {
+      setStep4Phase('detour');
       updateTutorialStepCard();
     }
   }
@@ -1224,9 +1385,17 @@ function handleUndo() {
 function handleReset() {
   isTutorialUndoLocked = false;
   if (btnUndoEl) btnUndoEl.classList.remove('is-pulse-focus');
-  if (gameState.gameMode === 'tutorial' && getCurrentTutorialStep().stepIndex === 3) {
-    setStep3Phase('try_straight');
-    updateTutorialStepCard();
+  if (btnClearRetryEl) btnClearRetryEl.classList.remove('is-pulse-focus');
+  if (gameState.gameMode === 'tutorial') {
+    const step = getCurrentTutorialStep();
+    if (step.stepIndex === 3) {
+      setStep3Phase('try_buffer');
+      updateTutorialStepCard();
+    }
+    if (step.stepIndex === 4) {
+      setStep4Phase('try_straight');
+      updateTutorialStepCard();
+    }
   }
 
   if (resetCurrentRound()) {
@@ -1513,10 +1682,6 @@ async function bootstrap() {
     });
   }
 
-  // 인게임 상단 헤더 '📖 가이드' 버튼 클릭 시: 조작법 텍스트 모달 열기!
-  if (btnIngameHelpEl) {
-    btnIngameHelpEl.addEventListener('click', openHowtoModal);
-  }
 
   if (btnHowtoCloseEl) {
     btnHowtoCloseEl.addEventListener('click', closeHowtoModal);
@@ -1601,12 +1766,6 @@ async function bootstrap() {
   if (btnResetEl) {
     btnResetEl.addEventListener('click', handleReset);
   }
-  if (btnChangeDifficultyEl) {
-    btnChangeDifficultyEl.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleHudPopover('changeDiff');
-    });
-  }
   if (btnSkipStageEl) {
     btnSkipStageEl.addEventListener('click', () => {
       playButtonClick();
@@ -1684,29 +1843,49 @@ async function bootstrap() {
     });
   }
 
-  // 상단 목표 배지 / 난이도 배지 호버 및 클릭(모바일 탭) 시 설명 표시
-  const bindBadgeInfo = (el, type) => {
+  // 상단 목표 배지 / 이동 / 완충 박스 호버 설명 및 클릭 시 고정 토글
+  const bindBadgeInfo = (el, type, enableHover = true) => {
     if (!el) return;
-    el.addEventListener('mouseenter', () => {
-      if (window.matchMedia('(hover: hover)').matches && activePopoverType !== 'changeDiff') {
-        showHudPopover(type);
-      }
-    });
-    el.addEventListener('mouseleave', () => {
-      if (window.matchMedia('(hover: hover)').matches && activePopoverType !== 'changeDiff') {
-        hideHudPopover();
-      }
-    });
+    if (enableHover) {
+      el.addEventListener('mouseenter', () => {
+        if (window.matchMedia('(hover: hover)').matches) {
+          // 유저가 난이도 팝오버를 열어둔 상태라면 마우스 스침으로 닫히지 않도록 보호
+          if (activePopoverType === 'changeDiff' || activePopoverType === 'difficulty') {
+            return;
+          }
+          showHudPopover(type);
+        }
+      });
+      el.addEventListener('mouseleave', () => {
+        if (window.matchMedia('(hover: hover)').matches) {
+          if (activePopoverType === 'changeDiff' || activePopoverType === 'difficulty') {
+            return;
+          }
+          hideHudPopover();
+        }
+      });
+    }
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleHudPopover(type);
     });
   };
 
-  bindBadgeInfo(hudTargetBadgeEl, 'target');
-  bindBadgeInfo(hudDifficultyBadgeEl, 'difficulty');
-  bindBadgeInfo(hudMoveBoxEl, 'move');
-  bindBadgeInfo(hudCollisionBoxEl, 'collision');
+  bindBadgeInfo(hudTargetBadgeEl, 'target', true);
+  // 난이도 배지는 마우스 올릴 때가 아니라 오직 클릭/탭으로 열고 닫히도록 설정 (PC에서 난이도 버튼 안정적 클릭 보장)
+  bindBadgeInfo(hudDifficultyBadgeEl, 'difficulty', false);
+  bindBadgeInfo(hudMoveBoxEl, 'move', true);
+  bindBadgeInfo(hudCollisionBoxEl, 'collision', true);
+
+  if (hudDifficultyBadgeEl) {
+    hudDifficultyBadgeEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleHudPopover('difficulty');
+      }
+    });
+  }
 
   document.addEventListener('click', () => {
     hideHudPopover();
