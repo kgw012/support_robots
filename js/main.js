@@ -199,8 +199,7 @@ function trackAnalyticsView(viewMode, pushEntry = false) {
       nextUrl = `/?mode=infinite&diff=${diff}&s=${sessionStageSeq}`;
     } else if (viewMode === 'daily') {
       const diff = gameState.dailyDifficultyMode || 'normal';
-      const seed = gameState.dateSeed || getTodayKSTDateSeed().seed;
-      nextUrl = `/?mode=daily&seed=${seed}&diff=${diff}`;
+      nextUrl = `/?mode=daily&diff=${diff}`;
     }
     if (pushEntry) {
       window.history.pushState({ viewMode }, '', nextUrl);
@@ -826,25 +825,23 @@ function showShareFeedback(message) {
 async function handleShareDailyRecord() {
   playButtonClick();
 
-  const dateSeed = gameState.dateSeed || getTodayKSTDateSeed().seed;
-  const dateFormatted = formatHistoryDate(dateSeed);
   const diffKey = gameState.dailyDifficultyMode || 'normal';
   const diffLabel = DIFF_META[diffKey]?.label || diffKey.toUpperCase();
 
   const origin = (typeof window !== 'undefined' && window.location && window.location.origin)
     ? window.location.origin
     : 'https://supportrobots.vercel.app';
-  const shareUrl = `${origin}/?mode=daily&diff=${diffKey}&seed=${dateSeed}`;
+  const shareUrl = `${origin}/?mode=daily&diff=${diffKey}`;
 
-  const shareTitle = `🤖 서포트 로봇 일일 챌린지 (${dateFormatted} ${diffLabel})`;
-  const shareText = `🤖 서포트 로봇 일일 챌린지 (${dateFormatted} ${diffLabel})\n🎯 ${gameState.moveCount}회 이동 · 완충 ${gameState.collisionCount}회로 구조 성공!\n${shareUrl}`;
+  const shareTitle = `🤖 서포트 로봇 일일 챌린지 [${diffLabel}]`;
+  const shareMessageBody = `🤖 서포트 로봇 일일 챌린지 [${diffLabel}]\n🎯 ${gameState.moveCount}회 이동 · 완충 ${gameState.collisionCount}회로 구조 성공!`;
 
-  // 1) 모바일 Web Share API 시도
+  // 1) 모바일 Web Share API 시도 (URL 중복 방지를 위해 text에는 본문만 전달)
   if (typeof navigator !== 'undefined' && navigator.share) {
     try {
       await navigator.share({
         title: shareTitle,
-        text: shareText,
+        text: shareMessageBody,
         url: shareUrl,
       });
       showShareFeedback('✅ 공유 완료!');
@@ -858,11 +855,12 @@ async function handleShareDailyRecord() {
     }
   }
 
-  // 2) 클립보드 복사 Fallback
+  // 2) 클립보드 복사 Fallback (본문 + 링크 총 3줄)
+  const fullTextToCopy = `${shareMessageBody}\n${shareUrl}`;
   let copied = false;
   if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
     try {
-      await navigator.clipboard.writeText(shareText);
+      await navigator.clipboard.writeText(fullTextToCopy);
       copied = true;
     } catch (_) {}
   }
@@ -870,7 +868,7 @@ async function handleShareDailyRecord() {
   if (!copied && typeof document !== 'undefined') {
     try {
       const ta = document.createElement('textarea');
-      ta.value = shareText;
+      ta.value = fullTextToCopy;
       ta.style.position = 'fixed';
       ta.style.left = '-9999px';
       ta.style.top = '-9999px';

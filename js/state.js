@@ -295,7 +295,8 @@ export function initGameState(options = {}) {
 
   if (mode === 'daily' && !isCustomPreset) {
     const todayInfo = getTodayKSTDateSeed();
-    const effectiveSeed = customDateSeed || todayInfo.seed;
+    // 일일 챌린지는 이전 날짜 및 임의 시드 조작을 원천 차단하고 항상 한국 시간(KST) 오늘 날짜만 적용
+    const effectiveSeed = todayInfo.seed;
     const effectiveDiff =
       targetDifficulty || gameState.dailyDifficultyMode || 'normal';
 
