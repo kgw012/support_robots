@@ -87,7 +87,7 @@ export function bindInputEvents(
   boardEl.addEventListener(
     'touchmove',
     (e) => {
-      // 보드판 위에서 드래그/스와이프 중에는 상하 스크롤을 막아 부드러운 조작감 보장
+      // 보드판 위에서 로봇을 미끄러뜨리는 동안 페이지 세로 스크롤만 방지
       if (startX !== null && e.cancelable) {
         e.preventDefault();
       }
@@ -95,7 +95,7 @@ export function bindInputEvents(
     { passive: false }
   );
 
-  window.addEventListener(
+  boardEl.addEventListener(
     'touchend',
     (e) => {
       if (startX === null || startY === null) return;
