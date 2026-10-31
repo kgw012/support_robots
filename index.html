@@ -153,20 +153,92 @@
         </div>
       </article>
 
-      <div class="lobby-mode-list">
-        <!-- 1. 일일 챌린지 버튼 (잠금 / 커밍순) -->
-        <button
-          type="button"
-          id="btn-mode-daily"
-          class="lobby-mode-btn is-locked"
-          aria-label="일일 챌린지 (개발 중)"
-        >
-          <div class="mode-btn-info">
-            <span class="mode-btn-title">일일 챌린지</span>
-            <span class="mode-btn-desc">매일 자정 초기화 · 전 세계 동일 시드 랭킹전</span>
+      <!-- 대원 인증 (로그인 / 원스톱 자동 가입) 카드 -->
+      <div id="lobby-auth-card" class="lobby-auth-card">
+        <!-- 비로그인 상태 -->
+        <form id="auth-login-form" class="auth-login-form" autocomplete="on">
+          <div class="auth-form-header">
+            <span class="auth-form-title">🔐 대원 접속 · 원스톱 로그인/가입</span>
+            <span class="auth-form-sub">처음 입력하는 닉네임은 즉시 자동 등록됩니다</span>
           </div>
-          <span class="mode-lock-badge">🔒 잠금</span>
-        </button>
+          <div class="auth-input-row">
+            <input
+              type="text"
+              id="input-nickname"
+              class="auth-input"
+              placeholder="닉네임 (한글 8자 / 영문 16자)"
+              maxlength="16"
+              autocomplete="username"
+              required
+            />
+            <input
+              type="password"
+              id="input-password"
+              class="auth-input"
+              placeholder="비밀번호 (4자+)"
+              minlength="4"
+              maxlength="32"
+              autocomplete="current-password"
+              required
+            />
+            <button type="submit" id="btn-auth-submit" class="auth-submit-btn">접속</button>
+          </div>
+          <p id="auth-feedback-msg" class="auth-feedback-msg" hidden></p>
+        </form>
+
+        <!-- 로그인 완료 상태 -->
+        <div id="auth-user-view" class="auth-user-view" hidden>
+          <div class="auth-user-info">
+            <span class="auth-user-badge">대원</span>
+            <strong id="auth-user-nickname" class="auth-user-name">-</strong>
+            <span class="auth-score-pill">
+              무한 점수 <strong id="auth-user-inf-score">0</strong>P
+            </span>
+          </div>
+          <button type="button" id="btn-auth-logout" class="auth-logout-btn">로그아웃</button>
+        </div>
+      </div>
+
+      <div class="lobby-mode-list">
+        <!-- 1. 일일 챌린지 버튼 (우측에 현재 선택된 난이도 배지 포함 · 로그인 필요) -->
+        <div class="infinite-mode-group">
+          <div
+            id="btn-mode-daily"
+            class="lobby-mode-btn is-daily"
+            role="button"
+            tabindex="0"
+            aria-label="일일 챌린지 시작하기"
+          >
+            <div class="mode-btn-info">
+              <div class="mode-title-line">
+                <span class="mode-btn-title">일일 챌린지</span>
+                <span id="lobby-daily-date-badge" class="daily-date-badge">TODAY</span>
+              </div>
+              <span class="mode-btn-desc">매일 자정 초기화 · 전 세계 동일 시드 실시간 랭킹전</span>
+            </div>
+            <button
+              type="button"
+              id="btn-lobby-daily-diff"
+              class="lobby-diff-badge difficulty-badge diff-normal"
+              title="클릭하여 일일 챌린지 난이도 변경"
+              aria-label="일일 챌린지 난이도 변경"
+            >
+              <span id="lobby-daily-diff-label">NORMAL</span>
+              <span class="badge-caret">▾</span>
+            </button>
+          </div>
+
+          <!-- 로비 내 일일 챌린지 난이도 선택 드로어 -->
+          <div id="lobby-daily-diff-drawer" class="lobby-diff-drawer" hidden>
+            <span class="drawer-caption">일일 챌린지 난이도 선택</span>
+            <div class="drawer-diff-options">
+              <button type="button" class="drawer-diff-btn difficulty-badge diff-easy" data-daily-diff="easy">EASY</button>
+              <button type="button" class="drawer-diff-btn difficulty-badge diff-normal is-active" data-daily-diff="normal">NORMAL</button>
+              <button type="button" class="drawer-diff-btn difficulty-badge diff-hard" data-daily-diff="hard">HARD</button>
+              <button type="button" class="drawer-diff-btn difficulty-badge diff-hell" data-daily-diff="hell">HELL</button>
+            </div>
+          </div>
+        </div>
 
         <!-- 2. 무한 모드 버튼 (우측에 현재 선택된 난이도 배지 포함) -->
         <div class="infinite-mode-group">
@@ -312,9 +384,18 @@
               type="button"
               id="btn-change-difficulty"
               class="top-next-btn"
-              title="무한 모드 난이도 변경"
+              title="난이도 변경"
             >
               <span>난이도 변경</span>
+            </button>
+            <button
+              type="button"
+              id="btn-open-leaderboard"
+              class="top-next-btn is-gold"
+              title="실시간 리더보드 순위표 보기"
+              hidden
+            >
+              <span>🏆 순위표</span>
             </button>
             <button
               type="button"
@@ -393,6 +474,7 @@
             <h2 class="clear-title">구조 성공!</h2>
             <p id="clear-summary" class="clear-summary"></p>
             <p id="clear-solver-feedback" class="clear-solver-feedback"></p>
+            <p id="clear-mode-reward" class="clear-mode-reward" hidden></p>
             <p id="clear-best-record" class="clear-best-record"></p>
             <div class="clear-actions">
               <button type="button" id="btn-clear-retry" class="clear-btn secondary">다시 도전</button>
@@ -461,6 +543,39 @@
           <span>되돌리기</span>
         </button>
       </footer>
+    </div>
+
+    <!-- 일일 챌린지 실시간 리더보드 모달 -->
+    <div
+      id="leaderboard-modal"
+      class="howto-modal"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="leaderboard-modal-title"
+    >
+      <div class="howto-card leaderboard-card">
+        <div class="howto-header">
+          <div>
+            <h2 id="leaderboard-modal-title" class="howto-title">🏆 일일 챌린지 순위표</h2>
+            <span id="leaderboard-date-subtitle" class="leaderboard-date-sub">오늘의 실시간 랭킹</span>
+          </div>
+          <button type="button" id="btn-leaderboard-close-top" class="howto-icon-close" aria-label="닫기">✕</button>
+        </div>
+
+        <div id="leaderboard-diff-tabs" class="drawer-diff-options">
+          <button type="button" class="drawer-diff-btn difficulty-badge diff-easy" data-lb-diff="easy">EASY</button>
+          <button type="button" class="drawer-diff-btn difficulty-badge diff-normal is-active" data-lb-diff="normal">NORMAL</button>
+          <button type="button" class="drawer-diff-btn difficulty-badge diff-hard" data-lb-diff="hard">HARD</button>
+          <button type="button" class="drawer-diff-btn difficulty-badge diff-hell" data-lb-diff="hell">HELL</button>
+        </div>
+
+        <div id="leaderboard-body" class="leaderboard-body">
+          <p class="leaderboard-empty">순위 데이터를 불러오는 중...</p>
+        </div>
+
+        <button type="button" id="btn-leaderboard-close" class="clear-btn primary howto-confirm-btn">닫기</button>
+      </div>
     </div>
   </main>
 

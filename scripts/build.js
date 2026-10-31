@@ -23,6 +23,7 @@ const MODULE_ORDER = [
   'js/input.js',
   'js/rules.js',
   'js/renderer.js',
+  'js/api.js',
   'js/main.js',
 ];
 
@@ -58,6 +59,23 @@ const MANGLE_IDENTIFIERS = [
   'curatedBaskets',
   'scanBoardIntoBaskets',
   'scheduleBackgroundRefill',
+  'getTodayKSTDateSeed',
+  'createSeededRandom',
+  'generateDailyChallengePuzzle',
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'INFINITE_DIFF_POINTS',
+  'authState',
+  'validateNickname',
+  'hashPasswordClient',
+  'supabaseRequest',
+  'saveSessionToStorage',
+  'restoreAuthSession',
+  'logoutUser',
+  'loginOrRegisterUser',
+  'submitDailyChallengeRecord',
+  'fetchDailyLeaderboard',
+  'addInfiniteModeScore',
   'gameState',
   'generateRandomRobots',
   'cloneRobots',
@@ -91,9 +109,15 @@ const MANGLE_IDENTIFIERS = [
   'trackAnalyticsView',
   'buildChangeDifficultyPopoverHTML',
   'syncLobbyDifficultyUI',
+  'syncAuthUI',
+  'showAuthFeedback',
+  'syncInGameHeaderByMode',
   'showLobbyToast',
   'enterInfiniteMode',
+  'enterDailyChallengeMode',
   'returnToLobby',
+  'openLeaderboardModal',
+  'handleModeClearSubmission',
   'showHudPopover',
   'hideHudPopover',
   'toggleHudPopover',
@@ -105,7 +129,7 @@ function stripModuleSyntax(code) {
   return code
     .replace(/^\s*import\s+[\s\S]*?from\s+['"][^'"]+['"]\s*;?\s*$/gm, '')
     .replace(/^\s*export\s*\{[\s\S]*?\}\s*;?\s*$/gm, '')
-    .replace(/^\s*export\s+(?=(const|let|var|function|class)\b)/gm, '');
+    .replace(/^\s*export\s+(?=(const|let|var|async\s+function|function|class)\b)/gm, '');
 }
 
 function stripCommentsAndMinifyJS(source) {

@@ -1,6 +1,6 @@
 /**
  * @file main.js
- * @description 애플리케이션 진입점 및 이벤트 바인딩 (1~5단계)
+ * @description 애플리케이션 진입점 및 이벤트 바인딩 (로비, 인증, 일일 챌린지, 무한 모드, 리더보드)
  */
 
 import {
@@ -11,6 +11,7 @@ import {
   resetCurrentRound,
   updateBestRecord,
   scheduleBackgroundRefill,
+  getTodayKSTDateSeed,
 } from './state.js';
 import {
   syncBoardPixelSize,
@@ -24,24 +25,54 @@ import { computeSlideDestination } from './physics.js';
 import { bindInputEvents } from './input.js';
 import { evaluateRoundStatus } from './rules.js';
 import { buildSolverFeedback } from './solver.js';
+import {
+  authState,
+  restoreAuthSession,
+  loginOrRegisterUser,
+  logoutUser,
+  submitDailyChallengeRecord,
+  fetchDailyLeaderboard,
+  addInfiniteModeScore,
+  INFINITE_DIFF_POINTS,
+} from './api.js';
 
 const lobbyScreenEl = document.getElementById('lobby-screen');
 const gameScreenEl = document.getElementById('game-screen');
 const btnLoreToggleEl = document.getElementById('btn-lore-toggle');
 const lobbyLoreBodyEl = document.getElementById('lobby-lore-body');
 const loreToggleBadgeEl = document.getElementById('lore-toggle-badge');
+
+const authLoginFormEl = document.getElementById('auth-login-form');
+const inputNicknameEl = document.getElementById('input-nickname');
+const inputPasswordEl = document.getElementById('input-password');
+const btnAuthSubmitEl = document.getElementById('btn-auth-submit');
+const authFeedbackMsgEl = document.getElementById('auth-feedback-msg');
+const authUserViewEl = document.getElementById('auth-user-view');
+const authUserNicknameEl = document.getElementById('auth-user-nickname');
+const authUserInfScoreEl = document.getElementById('auth-user-inf-score');
+const btnAuthLogoutEl = document.getElementById('btn-auth-logout');
+
 const btnModeDailyEl = document.getElementById('btn-mode-daily');
+const lobbyDailyDateBadgeEl = document.getElementById('lobby-daily-date-badge');
+const btnLobbyDailyDiffEl = document.getElementById('btn-lobby-daily-diff');
+const lobbyDailyDiffLabelEl = document.getElementById('lobby-daily-diff-label');
+const lobbyDailyDiffDrawerEl = document.getElementById('lobby-daily-diff-drawer');
+
 const btnModeInfiniteEl = document.getElementById('btn-mode-infinite');
 const btnLobbyDiffEl = document.getElementById('btn-lobby-diff');
 const lobbyDiffLabelEl = document.getElementById('lobby-diff-label');
 const lobbyDiffDrawerEl = document.getElementById('lobby-diff-drawer');
+
 const btnHowToPlayEl = document.getElementById('btn-how-to-play');
 const howtoModalEl = document.getElementById('howto-modal');
 const btnHowtoCloseEl = document.getElementById('btn-howto-close');
 const btnHowtoCloseTopEl = document.getElementById('btn-howto-close-top');
 const lobbyToastEl = document.getElementById('lobby-toast');
+
 const btnBackLobbyEl = document.getElementById('btn-back-lobby');
+const hudModeTitleEl = document.getElementById('hud-mode-title');
 const btnChangeDifficultyEl = document.getElementById('btn-change-difficulty');
+const btnOpenLeaderboardEl = document.getElementById('btn-open-leaderboard');
 
 const boardWrapperEl = document.querySelector('.board-wrapper');
 const boardGridEl = document.getElementById('board-grid');
@@ -51,11 +82,20 @@ const btnResetEl = document.getElementById('btn-reset');
 const btnSkipStageEl = document.getElementById('btn-skip-stage');
 const btnClearRetryEl = document.getElementById('btn-clear-retry');
 const btnClearNextEl = document.getElementById('btn-clear-next');
+const clearModeRewardEl = document.getElementById('clear-mode-reward');
+
 const hudTargetBadgeEl = document.getElementById('hud-target-badge');
 const hudDifficultyBadgeEl = document.getElementById('hud-difficulty-badge');
 const hudMoveBoxEl = document.getElementById('hud-move-box');
 const hudCollisionBoxEl = document.getElementById('hud-collision-box');
 const hudInfoPopoverEl = document.getElementById('hud-info-popover');
+
+const leaderboardModalEl = document.getElementById('leaderboard-modal');
+const leaderboardDateSubEl = document.getElementById('leaderboard-date-subtitle');
+const leaderboardDiffTabsEl = document.getElementById('leaderboard-diff-tabs');
+const leaderboardBodyEl = document.getElementById('leaderboard-body');
+const btnLeaderboardCloseEl = document.getElementById('btn-leaderboard-close');
+const btnLeaderboardCloseTopEl = document.getElementById('btn-leaderboard-close-top');
 
 const DIFF_META = Object.freeze({
   easy: { label: 'EASY', range: '1 ~ 4회' },
@@ -106,11 +146,12 @@ const HUD_INFO_CONTENT = Object.freeze({
 let activePopoverType = null;
 let lobbyToastTimer = null;
 let sessionStageSeq = 0;
+let activeLeaderboardDiff = 'normal';
 
 /**
  * Vercel Web Analytics가 SPA 내 화면 전환 및 스테이지 진행을 감지해
  * 활성 접속자(online) 상태를 유지하도록 URL 히스토리 및 라우트 신호를 갱신합니다.
- * @param {'lobby' | 'infinite'} viewMode
+ * @param {'lobby' | 'infinite' | 'daily'} viewMode
  * @param {boolean} [pushEntry=false]
  */
 function trackAnalyticsView(viewMode, pushEntry = false) {
@@ -121,6 +162,10 @@ function trackAnalyticsView(viewMode, pushEntry = false) {
       sessionStageSeq += 1;
       const diff = gameState.selectedDifficultyMode || 'normal';
       nextUrl = `/?mode=infinite&diff=${diff}&s=${sessionStageSeq}`;
+    } else if (viewMode === 'daily') {
+      const diff = gameState.dailyDifficultyMode || 'normal';
+      const seed = gameState.dateSeed || getTodayKSTDateSeed().seed;
+      nextUrl = `/?mode=daily&seed=${seed}&diff=${diff}`;
     }
     if (pushEntry) {
       window.history.pushState({ viewMode }, '', nextUrl);
@@ -136,7 +181,11 @@ function trackAnalyticsView(viewMode, pushEntry = false) {
 }
 
 function buildChangeDifficultyPopoverHTML() {
-  const currentDiff = gameState.selectedDifficultyMode || 'normal';
+  const isDaily = gameState.gameMode === 'daily';
+  const currentDiff = isDaily
+    ? gameState.dailyDifficultyMode || 'normal'
+    : gameState.selectedDifficultyMode || 'normal';
+
   const items = Object.entries(DIFF_META)
     .map(([diffId, meta]) => {
       const activeClass = diffId === currentDiff ? 'is-active' : '';
@@ -149,8 +198,12 @@ function buildChangeDifficultyPopoverHTML() {
     })
     .join('');
 
+  const headerTitle = isDaily
+    ? '일일 챌린지 난이도 변경 (오늘의 난이도별 문제 이동)'
+    : '무한 모드 난이도 변경 (선택 시 즉시 새 문제 출제)';
+
   return `
-    <strong>무한 모드 난이도 변경 (선택 시 즉시 새 문제 출제)</strong>
+    <strong>${headerTitle}</strong>
     <div class="popover-diff-grid">
       ${items}
     </div>
@@ -185,20 +238,66 @@ function toggleHudPopover(type) {
   }
 }
 
+function syncAuthUI() {
+  if (!authLoginFormEl || !authUserViewEl) return;
+  if (authState.isLoggedIn && authState.user) {
+    authLoginFormEl.hidden = true;
+    authUserViewEl.hidden = false;
+    if (authUserNicknameEl) {
+      authUserNicknameEl.textContent = authState.user.nickname;
+    }
+    if (authUserInfScoreEl) {
+      authUserInfScoreEl.textContent = String(authState.user.infinite_score ?? 0);
+    }
+  } else {
+    authLoginFormEl.hidden = false;
+    authUserViewEl.hidden = true;
+  }
+}
+
+function showAuthFeedback(msg, isOk = false) {
+  if (!authFeedbackMsgEl) return;
+  authFeedbackMsgEl.textContent = msg;
+  authFeedbackMsgEl.classList.toggle('is-ok', isOk);
+  authFeedbackMsgEl.hidden = false;
+}
+
 function syncLobbyDifficultyUI() {
-  const diffId = gameState.selectedDifficultyMode || 'normal';
-  const meta = DIFF_META[diffId] || DIFF_META.normal;
+  // 1. 무한 모드 난이도 배지 동기화
+  const infDiffId = gameState.selectedDifficultyMode || 'normal';
+  const infMeta = DIFF_META[infDiffId] || DIFF_META.normal;
 
   if (btnLobbyDiffEl) {
-    btnLobbyDiffEl.className = `lobby-diff-badge difficulty-badge diff-${diffId}`;
+    btnLobbyDiffEl.className = `lobby-diff-badge difficulty-badge diff-${infDiffId}`;
   }
   if (lobbyDiffLabelEl) {
-    lobbyDiffLabelEl.textContent = meta.label;
+    lobbyDiffLabelEl.textContent = infMeta.label;
   }
   if (lobbyDiffDrawerEl) {
     const btns = lobbyDiffDrawerEl.querySelectorAll('.drawer-diff-btn');
     btns.forEach((btn) => {
-      btn.classList.toggle('is-active', btn.dataset.diff === diffId);
+      btn.classList.toggle('is-active', btn.dataset.diff === infDiffId);
+    });
+  }
+
+  // 2. 일일 챌린지 난이도 배지 및 오늘 날짜 배지 동기화
+  const dailyDiffId = gameState.dailyDifficultyMode || 'normal';
+  const dailyMeta = DIFF_META[dailyDiffId] || DIFF_META.normal;
+  const todayInfo = getTodayKSTDateSeed();
+
+  if (lobbyDailyDateBadgeEl) {
+    lobbyDailyDateBadgeEl.textContent = todayInfo.shortFormatted;
+  }
+  if (btnLobbyDailyDiffEl) {
+    btnLobbyDailyDiffEl.className = `lobby-diff-badge difficulty-badge diff-${dailyDiffId}`;
+  }
+  if (lobbyDailyDiffLabelEl) {
+    lobbyDailyDiffLabelEl.textContent = dailyMeta.label;
+  }
+  if (lobbyDailyDiffDrawerEl) {
+    const btns = lobbyDailyDiffDrawerEl.querySelectorAll('.drawer-diff-btn');
+    btns.forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.dailyDiff === dailyDiffId);
     });
   }
 }
@@ -210,26 +309,235 @@ function showLobbyToast(message) {
   if (lobbyToastTimer) clearTimeout(lobbyToastTimer);
   lobbyToastTimer = setTimeout(() => {
     lobbyToastEl.hidden = true;
-  }, 2800);
+  }, 3000);
+}
+
+function syncInGameHeaderByMode() {
+  const isDaily = gameState.gameMode === 'daily';
+  const todayInfo = getTodayKSTDateSeed();
+
+  if (hudModeTitleEl) {
+    hudModeTitleEl.textContent = isDaily
+      ? `일일 챌린지 (${todayInfo.shortFormatted})`
+      : '무한 모드';
+  }
+  if (btnOpenLeaderboardEl) {
+    btnOpenLeaderboardEl.hidden = !isDaily;
+  }
+  if (btnSkipStageEl) {
+    btnSkipStageEl.hidden = isDaily;
+  }
+  if (btnClearNextEl) {
+    btnClearNextEl.textContent = isDaily ? '🏆 순위표 보기' : '다음 문제';
+  }
 }
 
 function enterInfiniteMode() {
   if (lobbyScreenEl) lobbyScreenEl.hidden = true;
   if (gameScreenEl) gameScreenEl.hidden = false;
   if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+  if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
 
-  initGameState({ targetDifficulty: gameState.selectedDifficultyMode });
+  initGameState({
+    mode: 'infinite',
+    targetDifficulty: gameState.selectedDifficultyMode,
+  });
+  syncInGameHeaderByMode();
   renderAll();
   trackAnalyticsView('infinite', true);
+}
+
+function enterDailyChallengeMode() {
+  if (!authState.isLoggedIn) {
+    showLobbyToast('🔒 일일 챌린지는 상단에서 대원 접속(로그인) 후 입장할 수 있습니다!');
+    if (inputNicknameEl) inputNicknameEl.focus();
+    return;
+  }
+
+  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+  if (gameScreenEl) gameScreenEl.hidden = false;
+  if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+  if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
+
+  initGameState({
+    mode: 'daily',
+    targetDifficulty: gameState.dailyDifficultyMode,
+  });
+  syncInGameHeaderByMode();
+  renderAll();
+  trackAnalyticsView('daily', true);
 }
 
 function returnToLobby(fromPopState = false) {
   hideHudPopover();
   syncLobbyDifficultyUI();
+  syncAuthUI();
   if (gameScreenEl) gameScreenEl.hidden = true;
   if (lobbyScreenEl) lobbyScreenEl.hidden = false;
   if (!fromPopState) {
     trackAnalyticsView('lobby', false);
+  }
+}
+
+function formatSubmittedTime(isoString) {
+  if (!isoString) return '-';
+  try {
+    const d = new Date(isoString);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  } catch (_) {
+    return '-';
+  }
+}
+
+function escapeHTML(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function openLeaderboardModal(diffId = gameState.dailyDifficultyMode || 'normal') {
+  if (!leaderboardModalEl || !leaderboardBodyEl) return;
+  activeLeaderboardDiff = diffId;
+  const todayInfo = getTodayKSTDateSeed();
+  const dateSeed = gameState.dateSeed || todayInfo.seed;
+
+  if (leaderboardDateSubEl) {
+    leaderboardDateSubEl.textContent = `${todayInfo.formatted} (KST) · 1순위 최소이동 / 2순위 최다완충 / 3순위 선착순`;
+  }
+
+  if (leaderboardDiffTabsEl) {
+    const btns = leaderboardDiffTabsEl.querySelectorAll('[data-lb-diff]');
+    btns.forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.lbDiff === activeLeaderboardDiff);
+    });
+  }
+
+  leaderboardBodyEl.innerHTML = `<p class="leaderboard-empty">순위 데이터를 불러오는 중...</p>`;
+  leaderboardModalEl.hidden = false;
+
+  try {
+    const rows = await fetchDailyLeaderboard(dateSeed, activeLeaderboardDiff);
+    if (!rows || rows.length === 0) {
+      leaderboardBodyEl.innerHTML = `
+        <p class="leaderboard-empty">
+          아직 오늘 <strong>${DIFF_META[activeLeaderboardDiff]?.label || ''}</strong> 난이도 클리어 기록이 없습니다.<br/>
+          지금 첫 번째 1위를 달성해 보세요!
+        </p>
+      `;
+      return;
+    }
+
+    const myId = authState.user?.id;
+    const headerHTML = `
+      <div class="lb-header-row">
+        <span>순위</span>
+        <span>대원명</span>
+        <span class="lb-stat">이동</span>
+        <span class="lb-stat">완충</span>
+        <span class="lb-time">달성 시각</span>
+      </div>
+    `;
+
+    const rowsHTML = rows
+      .map((r) => {
+        const rankNum = Number(r.rank);
+        let rankLabel = `${rankNum}위`;
+        if (rankNum === 1) rankLabel = '🥇 1위';
+        else if (rankNum === 2) rankLabel = '🥈 2위';
+        else if (rankNum === 3) rankLabel = '🥉 3위';
+
+        const isMe = myId && r.user_id === myId;
+        return `
+          <div class="lb-row ${isMe ? 'is-me' : ''}">
+            <span class="lb-rank">${rankLabel}</span>
+            <span class="lb-nick">${escapeHTML(r.nickname)}${isMe ? ' (나)' : ''}</span>
+            <span class="lb-stat">${r.move_count}회</span>
+            <span class="lb-stat">${r.collision_count}회</span>
+            <span class="lb-time">${formatSubmittedTime(r.submitted_at)}</span>
+          </div>
+        `;
+      })
+      .join('');
+
+    leaderboardBodyEl.innerHTML = headerHTML + rowsHTML;
+  } catch (err) {
+    leaderboardBodyEl.innerHTML = `<p class="leaderboard-empty">순위표를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>`;
+  }
+}
+
+/**
+ * 클리어 시 모드별 보상/기록 자동 제출 처리
+ * @param {{ isOptimal: boolean, message: string } | null} solverFeedback
+ */
+async function handleModeClearSubmission(solverFeedback) {
+  if (!clearModeRewardEl) return;
+
+  if (gameState.gameMode === 'daily') {
+    clearModeRewardEl.hidden = false;
+    clearModeRewardEl.textContent = '📡 일일 챌린지 기록을 서버에 자동 제출 중...';
+    try {
+      const res = await submitDailyChallengeRecord({
+        dateSeed: gameState.dateSeed || getTodayKSTDateSeed().seed,
+        difficulty: gameState.dailyDifficultyMode,
+        moveCount: gameState.moveCount,
+        collisionCount: gameState.collisionCount,
+      });
+      if (res && res.ok) {
+        if (res.status === 'INSERTED') {
+          clearModeRewardEl.textContent = '🏆 오늘의 일일 챌린지 첫 클리어 기록이 등록되었습니다!';
+        } else if (res.status === 'UPDATED') {
+          clearModeRewardEl.textContent = '🔥 오늘의 일일 챌린지 개인 최고 기록을 경신했습니다!';
+        } else {
+          clearModeRewardEl.textContent = '✅ 이미 달성한 오늘의 개인 최고 기록이 유지됩니다.';
+        }
+      } else {
+        clearModeRewardEl.textContent = '⚠️ 기록 제출에 실패했습니다. 로그인 상태를 확인해 주세요.';
+      }
+    } catch (_) {
+      clearModeRewardEl.textContent = '⚠️ 네트워크 오류로 기록을 제출하지 못했습니다.';
+    }
+    return;
+  }
+
+  // 무한 모드인 경우: 최단 이동 & 최대 완충(isOptimal) 완벽 달성 시에만 점수 지급
+  const diffId = gameState.difficulty?.id || 'normal';
+  const expectedPts = INFINITE_DIFF_POINTS[diffId] || 10;
+
+  if (!solverFeedback || !solverFeedback.isOptimal) {
+    clearModeRewardEl.hidden = false;
+    clearModeRewardEl.textContent = `🎯 최단 이동·최대 완충을 모두 달성하면 +${expectedPts}P가 적립됩니다! [다시 도전]해 보세요.`;
+    return;
+  }
+
+  if (!authState.isLoggedIn) {
+    clearModeRewardEl.hidden = false;
+    clearModeRewardEl.textContent = `💡 완벽한 구조 성공! 로비에서 로그인하면 무한 점수(+${expectedPts}P)가 누적됩니다.`;
+    return;
+  }
+
+  if (gameState.infiniteRewardClaimed) {
+    clearModeRewardEl.hidden = false;
+    clearModeRewardEl.textContent = `현재 누적 무한 점수: ${authState.user?.infinite_score ?? 0}P`;
+    return;
+  }
+
+  gameState.infiniteRewardClaimed = true;
+  clearModeRewardEl.hidden = false;
+  clearModeRewardEl.textContent = `✨ 완벽 클리어 보너스 +${expectedPts}P 적립 중...`;
+
+  try {
+    const res = await addInfiniteModeScore(diffId);
+    if (res && res.ok) {
+      clearModeRewardEl.textContent = `✨ 완벽 클리어 +${res.pointsAdded}P 획득! (누적 ${res.infiniteScore}P)`;
+      syncAuthUI();
+    }
+  } catch (_) {
+    clearModeRewardEl.textContent = `✨ 완벽 클리어 보너스 +${expectedPts}P`;
   }
 }
 
@@ -298,6 +606,7 @@ function handleMoveDirection(direction) {
       gameState.collisionCount
     );
     renderRuleFeedback(evaluation, solverFeedback, bestRecordInfo);
+    handleModeClearSubmission(solverFeedback);
     return;
   }
   renderRuleFeedback(evaluation);
@@ -328,7 +637,7 @@ function handleReset() {
 let isNextStageLocked = false;
 
 /**
- * 새로운 라운드(다음 문제) 시작 (현재 선택된 난이도 유지 + 1초 쿨타임 적용)
+ * 무한 모드 새로운 라운드(다음 문제) 시작 (현재 선택된 난이도 유지 + 1초 쿨타임 적용)
  */
 function handleNextStage(targetDifficulty = gameState.selectedDifficultyMode) {
   if (isNextStageLocked) return;
@@ -339,8 +648,9 @@ function handleNextStage(targetDifficulty = gameState.selectedDifficultyMode) {
   }
 
   hideHudPopover();
-  initGameState({ targetDifficulty });
+  initGameState({ mode: 'infinite', targetDifficulty });
   syncLobbyDifficultyUI();
+  syncInGameHeaderByMode();
   renderAll();
   trackAnalyticsView('infinite', false);
 
@@ -356,6 +666,9 @@ function handleNextStage(targetDifficulty = gameState.selectedDifficultyMode) {
  * 전체 화면(격자, 로봇, 상단 HUD)을 다시 렌더링합니다.
  */
 function renderAll() {
+  if (clearModeRewardEl) {
+    clearModeRewardEl.hidden = true;
+  }
   syncBoardPixelSize(boardWrapperEl);
   renderBoardGrid(boardGridEl, gameState);
   renderRobots(robotsLayerEl, gameState, handleSelectRobot);
@@ -368,6 +681,13 @@ function renderAll() {
  */
 function bootstrap() {
   syncLobbyDifficultyUI();
+  syncAuthUI();
+
+  // 로컬스토리지 로그인 세션 복원
+  restoreAuthSession().then(() => {
+    syncAuthUI();
+  });
+
   // 로비에 머무는 동안 백그라운드에서 난이도별 후보맵 바구니를 미리 채워둠
   scheduleBackgroundRefill(3);
 
@@ -376,6 +696,48 @@ function bootstrap() {
       syncBoardPixelSize(boardWrapperEl);
     }
   });
+
+  // 0. 로그인 / 자동 가입 폼 이벤트
+  if (authLoginFormEl) {
+    authLoginFormEl.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!inputNicknameEl || !inputPasswordEl) return;
+
+      if (btnAuthSubmitEl) btnAuthSubmitEl.disabled = true;
+      showAuthFeedback('인증 확인 중...', true);
+
+      try {
+        const res = await loginOrRegisterUser(
+          inputNicknameEl.value,
+          inputPasswordEl.value
+        );
+        if (!res.ok) {
+          showAuthFeedback(res.message, false);
+        } else {
+          if (authFeedbackMsgEl) authFeedbackMsgEl.hidden = true;
+          inputPasswordEl.value = '';
+          syncAuthUI();
+          showLobbyToast(
+            res.isNew
+              ? `🎉 환영합니다, ${res.user.nickname} 대원! 신규 등록 및 로그인되었습니다.`
+              : `✅ 반갑습니다, ${res.user.nickname} 대원! 접속 완료되었습니다.`
+          );
+        }
+      } catch (err) {
+        showAuthFeedback('서버 통신에 실패했습니다. 잠시 후 다시 시도해 주세요.', false);
+      } finally {
+        if (btnAuthSubmitEl) btnAuthSubmitEl.disabled = false;
+      }
+    });
+  }
+
+  if (btnAuthLogoutEl) {
+    btnAuthLogoutEl.addEventListener('click', () => {
+      logoutUser();
+      syncAuthUI();
+      showLobbyToast('로그아웃되었습니다.');
+    });
+  }
 
   // 1. 메인 로비 이벤트 바인딩
   if (btnLoreToggleEl && lobbyLoreBodyEl) {
@@ -389,17 +751,52 @@ function bootstrap() {
     });
   }
 
-  if (btnModeDailyEl) {
-    btnModeDailyEl.addEventListener('click', () => {
-      showLobbyToast('🚧 일일 챌린지는 현재 개발 중입니다! 곧 오픈됩니다. (Coming Soon)');
+  // 일일 챌린지 난이도 배지 및 시작 버튼
+  if (btnLobbyDailyDiffEl) {
+    btnLobbyDailyDiffEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (lobbyDailyDiffDrawerEl) {
+        lobbyDailyDiffDrawerEl.hidden = !lobbyDailyDiffDrawerEl.hidden;
+      }
+      if (lobbyDiffDrawerEl) {
+        lobbyDiffDrawerEl.hidden = true;
+      }
     });
   }
 
+  if (lobbyDailyDiffDrawerEl) {
+    lobbyDailyDiffDrawerEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-daily-diff]');
+      if (!btn || !btn.dataset.dailyDiff) return;
+      gameState.dailyDifficultyMode = btn.dataset.dailyDiff;
+      syncLobbyDifficultyUI();
+      lobbyDailyDiffDrawerEl.hidden = true;
+    });
+  }
+
+  if (btnModeDailyEl) {
+    btnModeDailyEl.addEventListener('click', (e) => {
+      if (e.target.closest('#btn-lobby-daily-diff')) return;
+      enterDailyChallengeMode();
+    });
+    btnModeDailyEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target.closest('#btn-lobby-daily-diff')) return;
+        e.preventDefault();
+        enterDailyChallengeMode();
+      }
+    });
+  }
+
+  // 무한 모드 난이도 배지 및 시작 버튼
   if (btnLobbyDiffEl) {
     btnLobbyDiffEl.addEventListener('click', (e) => {
       e.stopPropagation();
       if (lobbyDiffDrawerEl) {
         lobbyDiffDrawerEl.hidden = !lobbyDiffDrawerEl.hidden;
+      }
+      if (lobbyDailyDiffDrawerEl) {
+        lobbyDailyDiffDrawerEl.hidden = true;
       }
     });
   }
@@ -443,7 +840,7 @@ function bootstrap() {
   // 플레이 중 4분마다 활성 세션 신호를 갱신하여 장시간 고민 중에도 online 상태 유지
   setInterval(() => {
     if (document.visibilityState === 'visible' && gameScreenEl && !gameScreenEl.hidden) {
-      trackAnalyticsView('infinite', false);
+      trackAnalyticsView(gameState.gameMode || 'infinite', false);
     }
   }, 240000);
 
@@ -467,6 +864,37 @@ function bootstrap() {
       if (e.target === howtoModalEl) {
         closeHowtoModal();
       }
+    });
+  }
+
+  // 리더보드 모달 이벤트 바인딩
+  const closeLeaderboardModal = () => {
+    if (leaderboardModalEl) leaderboardModalEl.hidden = true;
+  };
+
+  if (btnOpenLeaderboardEl) {
+    btnOpenLeaderboardEl.addEventListener('click', () => {
+      openLeaderboardModal(gameState.dailyDifficultyMode || 'normal');
+    });
+  }
+  if (btnLeaderboardCloseEl) {
+    btnLeaderboardCloseEl.addEventListener('click', closeLeaderboardModal);
+  }
+  if (btnLeaderboardCloseTopEl) {
+    btnLeaderboardCloseTopEl.addEventListener('click', closeLeaderboardModal);
+  }
+  if (leaderboardModalEl) {
+    leaderboardModalEl.addEventListener('click', (e) => {
+      if (e.target === leaderboardModalEl) {
+        closeLeaderboardModal();
+      }
+    });
+  }
+  if (leaderboardDiffTabsEl) {
+    leaderboardDiffTabsEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-lb-diff]');
+      if (!btn || !btn.dataset.lbDiff) return;
+      openLeaderboardModal(btn.dataset.lbDiff);
     });
   }
 
@@ -495,7 +923,13 @@ function bootstrap() {
     btnClearRetryEl.addEventListener('click', handleReset);
   }
   if (btnClearNextEl) {
-    btnClearNextEl.addEventListener('click', () => handleNextStage());
+    btnClearNextEl.addEventListener('click', () => {
+      if (gameState.gameMode === 'daily') {
+        openLeaderboardModal(gameState.dailyDifficultyMode || 'normal');
+      } else {
+        handleNextStage();
+      }
+    });
   }
 
   if (hudInfoPopoverEl) {
@@ -505,12 +939,23 @@ function bootstrap() {
       if (!selectBtn) return;
       const newDiff = selectBtn.dataset.selectDiff;
       if (!newDiff) return;
-      gameState.selectedDifficultyMode = newDiff;
-      syncLobbyDifficultyUI();
+
       hideHudPopover();
-      initGameState({ targetDifficulty: newDiff });
-      renderAll();
-      trackAnalyticsView('infinite', false);
+      if (gameState.gameMode === 'daily') {
+        gameState.dailyDifficultyMode = newDiff;
+        syncLobbyDifficultyUI();
+        initGameState({ mode: 'daily', targetDifficulty: newDiff });
+        syncInGameHeaderByMode();
+        renderAll();
+        trackAnalyticsView('daily', false);
+      } else {
+        gameState.selectedDifficultyMode = newDiff;
+        syncLobbyDifficultyUI();
+        initGameState({ mode: 'infinite', targetDifficulty: newDiff });
+        syncInGameHeaderByMode();
+        renderAll();
+        trackAnalyticsView('infinite', false);
+      }
     });
   }
 

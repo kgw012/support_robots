@@ -39,6 +39,88 @@ const curatedBaskets = {
 let backgroundRefillTimer = null;
 let scannedBoardsInCycle = 0;
 let nextBoardId = 1;
+const dailyPuzzleCache = {};
+
+/**
+ * 한국 표준시(KST, UTC+9) 기준 오늘의 날짜 시드('YYYYMMDD')와 표시용 문자열('YYYY.MM.DD')을 반환합니다.
+ */
+export function getTodayKSTDateSeed() {
+  const now = new Date();
+  const kstMs = now.getTime() + 9 * 60 * 60 * 1000;
+  const kstDate = new Date(kstMs);
+  const yyyy = String(kstDate.getUTCFullYear());
+  const mm = String(kstDate.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(kstDate.getUTCDate()).padStart(2, '0');
+  return {
+    seed: `${yyyy}${mm}${dd}`,
+    formatted: `${yyyy}.${mm}.${dd}`,
+    shortFormatted: `${mm}.${dd}`,
+  };
+}
+
+/**
+ * 문자열 시드를 기반으로 모든 브라우저/기기에서 100% 동일한 난수열을 생성하는 결정론적 PRNG (xmur3 + mulberry32)
+ * @param {string} seedStr
+ * @returns {function(): number}
+ */
+export function createSeededRandom(seedStr) {
+  let h = 1779033703 ^ seedStr.length;
+  for (let i = 0; i < seedStr.length; i++) {
+    h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  let state = (h ^= h >>> 16) >>> 0;
+
+  return function seededRandom() {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * 날짜 시드('20261031')와 난이도('easy'|'normal'|'hard'|'hell')로
+ * 전 세계 모든 유저에게 동일한 최고 완충 점수 일일 챌린지 맵을 생성합니다.
+ */
+export function generateDailyChallengePuzzle(dateSeed, difficulty) {
+  const cacheKey = `${dateSeed}::${difficulty}`;
+  if (dailyPuzzleCache[cacheKey]) {
+    return dailyPuzzleCache[cacheKey];
+  }
+
+  const rng = createSeededRandom(cacheKey);
+  const matchingPool = [];
+  const allPool = [];
+
+  // 결정론적 시드로 보드들을 스캔하여 해당 난이도 후보들을 수집 (최소 4판, 해당 난이도가 나올 때까지 최대 12판)
+  for (let i = 0; i < 12; i++) {
+    const board = createBoardData({ randomFn: rng });
+    const robots = generateRandomRobots(board.targets, rng);
+    const candidates = evaluateBoardCandidates(board, robots);
+
+    for (const cand of candidates) {
+      allPool.push(cand);
+      if (cand.difficulty.id === difficulty) {
+        matchingPool.push(cand);
+      }
+    }
+
+    if (i >= 3 && matchingPool.length > 0) {
+      break;
+    }
+  }
+
+  const targetPool = matchingPool.length > 0 ? matchingPool : allPool;
+  // 완충 점수 내림차순 정렬 (동점일 경우 시드 순서 유지)
+  targetPool.sort((a, b) => b.score - a.score);
+
+  const bestPuzzle = targetPool[0];
+  dailyPuzzleCache[cacheKey] = bestPuzzle;
+  return bestPuzzle;
+}
 
 /**
  * 보드 1판(17개 타깃)을 일괄 스캔하되, 동일한 보드/로봇 배치가 연속 출제되지 않도록
@@ -104,6 +186,8 @@ export function scheduleBackgroundRefill(boardsToScan = 2) {
  * 현재 게임 라운드의 전체 상태 객체
  */
 export const gameState = {
+  gameMode: 'infinite',   // 'infinite' | 'daily'
+  dateSeed: null,         // 일일 챌린지 날짜 시드 (예: '20261031')
   board: null,            // { quadrantOrder, grid, targets, closedCells }
   robots: {},             // { red: { row, col }, green: { row, col }, blue: { row, col }, yellow: { row, col } }
   initialRobots: {},      // 라운드 시작 시점의 로봇 초기 좌표 (Position Markers & Reset용)
@@ -113,7 +197,9 @@ export const gameState = {
   maxCollisions: 0,       // 최단 이동 횟수 내에서 달성 가능한 최대 로봇 간 완충 충돌 횟수
   difficulty: null,       // 7단계 난이도 분류 { id: 'easy'|'normal'|'hard'|'hell', label: ... }
   selectedDifficultyMode: 'normal', // 무한 모드에서 현재 고정 선택된 난이도 ('easy'|'normal'|'hard'|'hell')
+  dailyDifficultyMode: 'normal',    // 일일 챌린지에서 현재 선택된 난이도 ('easy'|'normal'|'hard'|'hell')
   currentBoardId: null,   // 직전 라운드와 동일한 보드/로봇 배치가 연속 출제되는 것을 방지하기 위한 식별자
+  infiniteRewardClaimed: false, // 현재 무한 모드 문제에서 이미 클리어 점수를 획득했는지 여부
   bestRecord: null,       // 6단계 타이 브레이커 기준 현재 라운드 유저 최고 기록 { moveCount, collisionCount }
   moveCount: 0,           // 누적 이동 횟수
   collisionCount: 0,      // 누적 로봇 간 충돌(완충) 횟수
@@ -186,6 +272,8 @@ export function cloneRobots(robots) {
  */
 export function initGameState(options = {}) {
   const {
+    mode = gameState.gameMode || 'infinite',
+    dateSeed: customDateSeed,
     quadrantOrder,
     initialRobots,
     activeTarget,
@@ -193,6 +281,8 @@ export function initGameState(options = {}) {
     minMoves: precomputedMinMoves,
     randomFn = Math.random,
   } = options;
+
+  gameState.gameMode = mode;
 
   let board;
   let startRobots;
@@ -203,7 +293,24 @@ export function initGameState(options = {}) {
 
   const isCustomPreset = Boolean(quadrantOrder || initialRobots || activeTarget);
 
-  if (!isCustomPreset) {
+  if (mode === 'daily' && !isCustomPreset) {
+    const todayInfo = getTodayKSTDateSeed();
+    const effectiveSeed = customDateSeed || todayInfo.seed;
+    const effectiveDiff =
+      targetDifficulty || gameState.dailyDifficultyMode || 'normal';
+
+    gameState.dateSeed = effectiveSeed;
+    gameState.dailyDifficultyMode = effectiveDiff;
+
+    const dailyPicked = generateDailyChallengePuzzle(effectiveSeed, effectiveDiff);
+    board = dailyPicked.board;
+    startRobots = cloneRobots(dailyPicked.initialRobots);
+    chosenTarget = { ...dailyPicked.activeTarget };
+    minMoves = dailyPicked.minMoves;
+    maxCollisions = dailyPicked.maxCollisions;
+    difficulty = dailyPicked.difficulty;
+  } else if (!isCustomPreset) {
+    gameState.dateSeed = null;
     const effectiveDifficulty =
       targetDifficulty || gameState.selectedDifficultyMode || 'normal';
     gameState.selectedDifficultyMode = effectiveDifficulty;
@@ -288,6 +395,7 @@ export function initGameState(options = {}) {
   gameState.minMoves = minMoves;
   gameState.maxCollisions = maxCollisions;
   gameState.difficulty = difficulty;
+  gameState.infiniteRewardClaimed = false;
   gameState.bestRecord = null;
   gameState.selectedRobot =
     chosenTarget.color === ROBOT_COLORS.MULTI

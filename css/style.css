@@ -55,7 +55,12 @@ body {
 .lobby-diff-drawer[hidden],
 .lobby-toast[hidden],
 .lobby-lore-body[hidden],
-.howto-modal[hidden] {
+.howto-modal[hidden],
+.auth-login-form[hidden],
+.auth-user-view[hidden],
+.auth-feedback-msg[hidden],
+.top-next-btn[hidden],
+.clear-mode-reward[hidden] {
   display: none !important;
 }
 
@@ -255,6 +260,165 @@ body {
   font-weight: 700;
 }
 
+/* 로비 대원 인증(로그인 / 자동 가입) 카드 */
+.lobby-auth-card {
+  background: rgba(11, 15, 22, 0.82);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: 11px;
+  padding: 12px 14px;
+}
+
+.auth-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.auth-form-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #93c5fd;
+}
+
+.auth-form-sub {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.auth-input-row {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr auto;
+  gap: 6px;
+}
+
+@media (max-width: 420px) {
+  .auth-input-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .auth-submit-btn {
+    grid-column: 1 / -1;
+  }
+}
+
+.auth-input {
+  width: 100%;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.auth-input:focus {
+  border-color: #60a5fa;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.auth-submit-btn {
+  padding: 8px 14px;
+  border-radius: 7px;
+  border: none;
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-feedback-msg {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #f87171;
+  line-height: 1.4;
+}
+
+.auth-feedback-msg.is-ok {
+  color: #4ade80;
+}
+
+.auth-user-view {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.auth-user-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  color: #93c5fd;
+}
+
+.auth-user-name {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.auth-score-pill {
+  font-size: 0.74rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: #bbf7d0;
+}
+
+.auth-score-pill strong {
+  color: #4ade80;
+  font-weight: 800;
+}
+
+.auth-logout-btn {
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-secondary);
+  font-size: 0.73rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-logout-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
 .lobby-mode-list {
   display: flex;
   flex-direction: column;
@@ -287,14 +451,31 @@ body {
   transform: scale(0.985);
 }
 
-.lobby-mode-btn.is-locked {
-  opacity: 0.68;
-  background: rgba(15, 20, 28, 0.55);
-  border-style: dashed;
+.lobby-mode-btn.is-daily {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(168, 85, 247, 0.18));
+  border-color: rgba(251, 191, 36, 0.45);
 }
 
-.lobby-mode-btn.is-locked:hover {
-  background: rgba(255, 255, 255, 0.06);
+.lobby-mode-btn.is-daily:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(168, 85, 247, 0.24));
+  border-color: rgba(251, 191, 36, 0.7);
+}
+
+.mode-title-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.daily-date-badge {
+  font-size: 0.66rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  color: #fde68a;
+  letter-spacing: 0.03em;
 }
 
 .lobby-mode-btn.is-primary {
@@ -1199,4 +1380,114 @@ body {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+.top-next-btn.is-gold {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #fde68a;
+}
+
+.top-next-btn.is-gold:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.28);
+  color: #ffffff;
+}
+
+.clear-mode-reward {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  color: #93c5fd;
+  line-height: 1.4;
+}
+
+/* 일일 챌린지 실시간 리더보드 모달 */
+.leaderboard-card {
+  max-width: 460px;
+}
+
+.leaderboard-date-sub {
+  display: block;
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.leaderboard-body {
+  min-height: 180px;
+  max-height: 46dvh;
+  overflow-y: auto;
+  background: rgba(11, 15, 22, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leaderboard-empty {
+  margin: auto;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 30px 12px;
+}
+
+.lb-header-row,
+.lb-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 56px 56px 68px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+}
+
+.lb-header-row {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 6px;
+}
+
+.lb-row {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.lb-row.is-me {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(96, 165, 250, 0.45);
+}
+
+.lb-rank {
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.lb-nick {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-stat {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-time {
+  text-align: right;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 
