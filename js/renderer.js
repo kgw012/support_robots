@@ -104,10 +104,6 @@ export function renderBoardGrid(gridEl, state) {
       cell.dataset.row = String(r);
       cell.dataset.col = String(c);
 
-      // 8x8 사분면 경계선 시각적 가이드용 보조 클래스
-      if (r === 7) cell.classList.add('quadrant-seam-bottom');
-      if (c === 7) cell.classList.add('quadrant-seam-right');
-
       if (isCenterClosedCell(r, c)) {
         cell.classList.add('cell-closed');
       }

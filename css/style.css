@@ -219,14 +219,9 @@ body {
 }
 
 .board-cell {
-  --sh-n: 0 0 0 transparent;
-  --sh-e: 0 0 0 transparent;
-  --sh-s: 0 0 0 transparent;
-  --sh-w: 0 0 0 transparent;
   position: relative;
   border-right: 1px solid var(--cell-grid-line);
   border-bottom: 1px solid var(--cell-grid-line);
-  box-shadow: var(--sh-n), var(--sh-e), var(--sh-s), var(--sh-w);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -249,14 +244,6 @@ body {
   pointer-events: none;
 }
 
-/* 8x8 사분면 경계선 미세 구분 */
-.board-cell.quadrant-seam-right {
-  border-right-color: var(--quadrant-seam-line);
-}
-.board-cell.quadrant-seam-bottom {
-  border-bottom-color: var(--quadrant-seam-line);
-}
-
 /* 중앙 2x2 폐쇄 구역 칸 */
 .board-cell.cell-closed {
   background-color: var(--wall-color);
@@ -265,19 +252,18 @@ body {
   display: none;
 }
 
-/* 비트마스크 벽 렌더링 (북:1, 동:2, 남:4, 서:8)
-   border 대신 inset box-shadow를 사용하여 벽 유무에 따른 칸 내부 레이아웃 밀림을 0px로 차단 */
+/* 비트마스크 벽 렌더링 (북:1, 동:2, 남:4, 서:8) - 단일 굵은 선 */
 .board-cell.wall-n {
-  --sh-n: inset 0 2.5px 0 0 var(--wall-color);
+  border-top: 2.5px solid var(--wall-color);
 }
 .board-cell.wall-e {
-  --sh-e: inset -2.5px 0 0 0 var(--wall-color);
+  border-right: 2.5px solid var(--wall-color);
 }
 .board-cell.wall-s {
-  --sh-s: inset 0 -2.5px 0 0 var(--wall-color);
+  border-bottom: 2.5px solid var(--wall-color);
 }
 .board-cell.wall-w {
-  --sh-w: inset 2.5px 0 0 0 var(--wall-color);
+  border-left: 2.5px solid var(--wall-color);
 }
 
 /* 타깃 심볼 마커 */
