@@ -143,20 +143,112 @@ export async function generateDailyChallengePuzzle(dateSeed, difficulty) {
   return bestPuzzle;
 }
 
+let isDailyWarmupRunning = false;
+
 /**
- * 보드 1판(17개 타깃)을 일괄 스캔하되, 동일한 보드/로봇 배치가 연속 출제되지 않도록
- * 각 난이도별로 가장 점수가 높은 대표 타깃 1개씩만 바구니에 추가합니다.
+ * 오늘 일일 챌린지의 해당 난이도 퍼즐이 이미 백그라운드에서 연산 완료되어 캐싱되어 있는지 확인합니다.
+ * @param {string} [difficulty]
+ * @returns {boolean}
+ */
+export function isDailyChallengeReady(difficulty = gameState.dailyDifficultyMode || 'normal') {
+  if (typeof window === 'undefined') return false;
+  const todayInfo = getTodayKSTDateSeed();
+  return Boolean(dailyPuzzleCache[`${todayInfo.seed}::${difficulty}`]);
+}
+
+/**
+ * 무한 모드의 해당 난이도 퍼즐이 바구니에 준비되어 있는지 확인합니다.
+ * (직전 보드와 다른 새로운 보드가 최소 1개 이상 존재해야 true)
+ * @param {string} [difficulty]
+ * @returns {boolean}
+ */
+export function isInfinitePuzzleReady(difficulty = gameState.selectedDifficultyMode || 'normal') {
+  const basket = curatedBaskets[difficulty];
+  return Boolean(
+    basket &&
+    basket.length > 0 &&
+    basket.some((c) => c.boardId !== gameState.currentBoardId)
+  );
+}
+
+/**
+ * 특정 난이도의 오늘 일일 챌린지 맵을 백그라운드에서 우선 생성하여 캐싱해둡니다.
+ * @param {string} [targetDiff]
+ */
+export async function warmupDailyChallenge(targetDiff = gameState.dailyDifficultyMode || 'normal') {
+  if (typeof window === 'undefined') return;
+  const todayInfo = getTodayKSTDateSeed();
+  const cacheKey = `${todayInfo.seed}::${targetDiff}`;
+  if (dailyPuzzleCache[cacheKey]) return;
+
+  try {
+    await generateDailyChallengePuzzle(todayInfo.seed, targetDiff);
+  } catch (_) {
+    // 백그라운드 워밍업 예외 무시
+  }
+}
+
+/**
+ * 페이지 최초 진입(로비) 시 브라우저 유휴 시간을 활용하여
+ * 오늘의 일일 챌린지 4개 난이도를 백그라운드에서 우선순위대로 사전 생성해둡니다.
+ * (우선순위: 현재 선택된 난이도 -> HELL -> HARD -> EASY)
+ */
+export async function warmupAllDailyChallenges() {
+  if (typeof window === 'undefined') return;
+  if (isDailyWarmupRunning) return;
+  isDailyWarmupRunning = true;
+
+  try {
+    const todayInfo = getTodayKSTDateSeed();
+    const currentDiff = gameState.dailyDifficultyMode || 'normal';
+    const diffsToWarm = [currentDiff, 'hell', 'hard', 'easy'].filter(
+      (d, idx, arr) => arr.indexOf(d) === idx
+    );
+
+    for (const diff of diffsToWarm) {
+      const cacheKey = `${todayInfo.seed}::${diff}`;
+      if (!dailyPuzzleCache[cacheKey]) {
+        await generateDailyChallengePuzzle(todayInfo.seed, diff);
+        // 모바일 저발열 및 브라우저 숨 돌리기
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      }
+    }
+  } catch (_) {
+    // 백그라운드 워밍업 예외 무시
+  } finally {
+    isDailyWarmupRunning = false;
+  }
+}
+
+/**
+ * 보드 1판(17개 타깃)을 스캔하여, 비어있는 난이도 바구니에 필요한 퍼즐을 1개씩 충전합니다.
+ * 모든 난이도(easy, normal, hard, hell)에 이미 다음 문제가 1개씩 준비되어 있다면 연산을 즉시 생략합니다.
  * @param {function(): number} [randomFn]
  */
-export function scanBoardIntoBaskets(randomFn = Math.random) {
+export async function scanBoardIntoBaskets(randomFn = Math.random) {
+  // 이미 모든 난이도에 다음 문제가 1개씩 채워져 있다면 연산할 필요 없이 즉시 종료
+  if (
+    curatedBaskets.easy.length >= 1 &&
+    curatedBaskets.normal.length >= 1 &&
+    curatedBaskets.hard.length >= 1 &&
+    curatedBaskets.hell.length >= 1
+  ) {
+    return;
+  }
+
   const boardId = nextBoardId++;
   const board = createBoardData({ randomFn });
   const robots = generateRandomRobots(board.targets, randomFn);
   const candidates = evaluateBoardCandidates(board, robots);
 
-  // 후보 중 미해결(solved=false)이거나 8회 이상인 후보는 정밀 솔버로 팩트체크하여 실제 난이도로 보정
+  // hard 또는 hell 바구니가 비어있을 때만 무거운 BFS 검증을 수행하고, 이미 채워져 있다면 건너뜀
+  const needsHardOrHell =
+    curatedBaskets.hard.length < 1 || curatedBaskets.hell.length < 1;
+
   for (const cand of candidates) {
-    if (!cand.solved || cand.minMoves >= 8) {
+    if ((!cand.solved || cand.minMoves >= 8) && needsHardOrHell) {
+      // 메인 스레드에 제어권을 양보하여 오디오 렌더링 및 UI 스와이프 버벅임 방지
+      await new Promise((resolve) => setTimeout(resolve, 0));
       const precise = solveBoardBFS(board.grid, robots, cand.activeTarget);
       if (precise.solved) {
         cand.minMoves = precise.minMoves;
@@ -168,10 +260,14 @@ export function scanBoardIntoBaskets(randomFn = Math.random) {
     }
   }
 
-  // 한 보드 내에서는 난이도별로 최고 점수 후보 단 1개만 선별 (동일 맵/로봇 배치 중복 방지)
+  // 비어있는 난이도 바구니에 넣을 최고 점수 후보 1개씩만 선별
   const bestPerDifficulty = {};
   for (const cand of candidates) {
+    if (!cand.solved) continue;
     const diffId = cand.difficulty.id;
+    // 해당 바구니가 이미 채워져 있다면 추가 선별 불필요
+    if (curatedBaskets[diffId] && curatedBaskets[diffId].length >= 1) continue;
+
     if (
       !bestPerDifficulty[diffId] ||
       cand.score > bestPerDifficulty[diffId].score
@@ -181,40 +277,50 @@ export function scanBoardIntoBaskets(randomFn = Math.random) {
   }
 
   for (const [diffId, bestCand] of Object.entries(bestPerDifficulty)) {
-    if (curatedBaskets[diffId]) {
+    if (curatedBaskets[diffId] && curatedBaskets[diffId].length < 1) {
       curatedBaskets[diffId].push(bestCand);
-    }
-  }
-
-  // 각 바구니를 완충 점수 내림차순으로 정렬하고 상위 12개까지만 유지
-  for (const key of Object.keys(curatedBaskets)) {
-    curatedBaskets[key].sort((a, b) => b.score - a.score);
-    if (curatedBaskets[key].length > 12) {
-      curatedBaskets[key].length = 12;
     }
   }
 }
 
 /**
  * 플레이 중 또는 '다음 문제' 1초 쿨타임 동안 백그라운드에서 프레임 단위로 분할하여
- * 보드들을 스캔해 바구니를 채워둡니다 (화면 프리징 0ms).
+ * 비어있는 난이도 바구니에 퍼즐을 1개씩만 보충해둡니다 (화면 프리징 및 오디오 끊김 0%).
  */
 export function scheduleBackgroundRefill(boardsToScan = 2) {
   if (typeof window === 'undefined') return;
   if (backgroundRefillTimer !== null) return;
+
+  // 모든 난이도에 이미 다음 문제가 1개씩 준비되어 있다면 스캔 예약 자체를 하지 않음
+  const isBasketsSufficient =
+    curatedBaskets.easy.length >= 1 &&
+    curatedBaskets.normal.length >= 1 &&
+    curatedBaskets.hard.length >= 1 &&
+    curatedBaskets.hell.length >= 1;
+  if (isBasketsSufficient) return;
+
   scannedBoardsInCycle = 0;
 
   const scheduleNext = (cb) => {
     if (typeof window.requestIdleCallback === 'function') {
-      return window.requestIdleCallback(cb, { timeout: 150 });
+      return window.requestIdleCallback(cb, { timeout: 1000 });
     }
-    return setTimeout(cb, 90);
+    return setTimeout(cb, 250);
   };
 
-  const step = () => {
-    scanBoardIntoBaskets();
+  const step = async () => {
+    try {
+      await scanBoardIntoBaskets();
+    } catch (_) {}
     scannedBoardsInCycle += 1;
-    if (scannedBoardsInCycle < boardsToScan) {
+
+    const stillNeedsMore =
+      curatedBaskets.easy.length < 1 ||
+      curatedBaskets.normal.length < 1 ||
+      curatedBaskets.hard.length < 1 ||
+      curatedBaskets.hell.length < 1;
+
+    if (stillNeedsMore && scannedBoardsInCycle < boardsToScan) {
       backgroundRefillTimer = scheduleNext(step);
     } else {
       backgroundRefillTimer = null;
@@ -366,7 +472,7 @@ export async function initGameState(options = {}) {
       curatedBaskets.hell.length;
 
     if (totalAvailable === 0) {
-      scanBoardIntoBaskets(randomFn);
+      await scanBoardIntoBaskets(randomFn);
     }
 
     // 선택된 난이도 바구니에 직전 라운드와 다른 보드(boardId) 후보가 있는지 확인하고 없으면 최대 10판 스캔
@@ -376,7 +482,7 @@ export async function initGameState(options = {}) {
 
     if (!hasDifferentBoard(effectiveDifficulty)) {
       for (let i = 0; i < 10; i++) {
-        scanBoardIntoBaskets(randomFn);
+        await scanBoardIntoBaskets(randomFn);
         if (hasDifferentBoard(effectiveDifficulty)) break;
         // 타임 슬라이싱: 보드 1판 스캔 후 메인 스레드에 0ms 양보하여 부드러운 스피너 회전 보장
         await new Promise((resolve) => setTimeout(resolve, 0));
@@ -450,8 +556,8 @@ export async function initGameState(options = {}) {
     maxCollisions = picked.maxCollisions;
     difficulty = picked.difficulty;
 
-    // 다음 문제들을 위해 백그라운드에서 3판 분할 스캔 예약
-    scheduleBackgroundRefill(3);
+    // 다음 문제들을 위해 백그라운드에서 1판 분할 스캔 예약 (오디오 및 프레임 드랍 방지)
+    scheduleBackgroundRefill(1);
   } else {
     board = createBoardData({ quadrantOrder, randomFn });
     startRobots = initialRobots

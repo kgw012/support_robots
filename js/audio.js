@@ -189,8 +189,8 @@ const ARP_SEQUENCE = [
 const TEMPO_BPM = 114;
 const SECONDS_PER_BEAT = 60.0 / TEMPO_BPM;
 const SECONDS_PER_STEP = SECONDS_PER_BEAT / 4; // 16분음표 = 약 0.1315초
-const LOOKAHEAD_MS = 25.0;
-const SCHEDULE_AHEAD_TIME = 0.12;
+const LOOKAHEAD_MS = 35.0;
+const SCHEDULE_AHEAD_TIME = 0.85; // 850ms 선행 큐잉 버퍼 (백그라운드 맵 생성 시에도 BGM 무중단 연속 재생)
 
 let bgmRunning = false;
 let bgmMasterGain = null;
@@ -252,15 +252,15 @@ function playPadChord(chordFreqs, time) {
       if (current) {
         const oldGain = current.gain;
         const oldOsc = current.osc;
-        oldGain.gain.setValueAtTime(oldGain.gain.value, time);
+        oldGain.gain.setValueAtTime(VOICE_GAIN, time);
         oldGain.gain.linearRampToValueAtTime(0.0001, time + CROSSFADE);
         oldOsc.stop(time + CROSSFADE + 0.02);
-        setTimeout(() => {
+        oldOsc.onended = () => {
           try {
             oldOsc.disconnect();
             oldGain.disconnect();
           } catch (_) {}
-        }, (CROSSFADE + 0.1) * 1000);
+        };
       }
 
       bgmPadVoices[idx] = { osc, gain, freq };
@@ -306,6 +306,13 @@ function playStepNote(step, time) {
 
     osc.start(time);
     osc.stop(time + SECONDS_PER_STEP * 1.5);
+    osc.onended = () => {
+      try {
+        osc.disconnect();
+        filter.disconnect();
+        gain.disconnect();
+      } catch (_) {}
+    };
   }
 
   // 2. 펑키 베이스 (Triangle: 쫀득하고 둥글둥글한 베이스)
@@ -324,6 +331,12 @@ function playStepNote(step, time) {
 
     osc.start(time);
     osc.stop(time + SECONDS_PER_STEP * 1.3);
+    osc.onended = () => {
+      try {
+        osc.disconnect();
+        gain.disconnect();
+      } catch (_) {}
+    };
   }
 
   // 3. 은은한 아르페지오 반주 (Sine: 부드러운 화음 텍스처)
@@ -342,6 +355,12 @@ function playStepNote(step, time) {
 
     osc.start(time);
     osc.stop(time + SECONDS_PER_STEP * 0.95);
+    osc.onended = () => {
+      try {
+        osc.disconnect();
+        gain.disconnect();
+      } catch (_) {}
+    };
   }
 }
 
