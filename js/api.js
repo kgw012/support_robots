@@ -315,6 +315,22 @@ export async function fetchDailyLeaderboard(dateSeed, difficulty) {
 }
 
 /**
+ * 특정 난이도의 지난 일자별 1위 기록(최근 최대 10일)을 조회합니다.
+ * DB View(v_challenge_daily_hall_of_fame)에 난이도별 최근 10일 1위 필터링이 캡슐화되어 있습니다.
+ * @param {'easy'|'normal'|'hard'|'hell'} difficulty
+ * @returns {Promise<Array>}
+ */
+export async function fetchDailyHistoryLeaderboard(difficulty) {
+  const query =
+    `/rest/v1/v_challenge_daily_hall_of_fame` +
+    `?difficulty=eq.${encodeURIComponent(difficulty)}` +
+    `&order=date_seed.desc`;
+
+  const rows = await supabaseRequest(query);
+  return Array.isArray(rows) ? rows : [];
+}
+
+/**
  * 무한 모드 누적 점수 순위표(상위 50명)를 조회합니다.
  */
 export async function fetchInfiniteLeaderboard() {

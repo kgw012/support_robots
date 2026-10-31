@@ -43,14 +43,14 @@
         <svg
           class="lobby-hero-svg"
           viewBox="0 0 480 170"
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio="xMidYMin slice"
           aria-hidden="true"
         >
           <defs>
             <linearGradient id="bgShaft" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#0b1017" />
-              <stop offset="60%" stop-color="#131c27" />
-              <stop offset="100%" stop-color="#1b2531" />
+              <stop offset="55%" stop-color="#131c27" />
+              <stop offset="100%" stop-color="#0b1017" />
             </linearGradient>
             <radialGradient id="beaconGlow" cx="0.82" cy="0.22" r="0.45">
               <stop offset="0%" stop-color="rgba(239, 68, 68, 0.38)" />
@@ -106,52 +106,66 @@
         </svg>
 
         <div class="lobby-hero-overlay">
-          <span class="lobby-sector-tag">
-            <span class="beacon-dot"></span>
-            UNDERGROUND SECTOR B-16 · SEISMIC ALERT
-          </span>
-          <h1 class="lobby-title">SUPPORT ROBOTS</h1>
-          <p class="lobby-subtitle">서포트 로봇 : 무너지는 지하 폐기장 구조 작전</p>
+          <div class="lobby-hero-header">
+            <span class="lobby-sector-tag">
+              <span class="beacon-dot"></span>
+              UNDERGROUND SECTOR B-16 · SEISMIC ALERT
+            </span>
+            <div class="sound-controls-group">
+              <button
+                type="button"
+                id="btn-bgm-toggle-lobby"
+                class="sound-toggle-btn"
+                title="배경음악 켜기/끄기"
+                aria-label="배경음악 켜기/끄기"
+              >
+                <span class="sound-icon">🎵</span>
+              </button>
+              <button
+                type="button"
+                id="btn-sfx-toggle-lobby"
+                class="sound-toggle-btn"
+                title="효과음 켜기/끄기"
+                aria-label="효과음 켜기/끄기"
+              >
+                <span class="sound-icon">🔊</span>
+              </button>
+            </div>
+          </div>
+          <div class="lobby-hero-center">
+            <h1 class="lobby-title">SUPPORT ROBOTS</h1>
+            <p class="lobby-subtitle">서포트 로봇 : 무너지는 지하 폐기장 구조 작전</p>
+          </div>
+
+          <!-- 통합 세계관 브리핑 (중앙 정렬 · 1~2행 페이드아웃 · 펼쳐보기 토글) -->
+          <div class="lobby-lore-wrapper">
+            <div id="lobby-lore-body" class="lobby-lore-body is-collapsed">
+              <p class="lobby-lore-line">
+                버려진 로봇 공장의 지하 깊은 곳, 원인 불명의 시스템 에러로 폐기장 시설이 전면 붕괴하기 시작했습니다.
+              </p>
+              <p class="lobby-lore-line">
+                충격으로 격리되어 있던 로봇들은 자세 제어 장치와 마찰력을 상실하여, 한 번 미끄러지면 벽이나 다른 로봇에 부딪히기 전까지는 스스로 멈출 수 없는 유압 제어 불능 상태에 빠졌습니다.
+              </p>
+              <p class="lobby-lore-line">
+                지반은 충격에 극도로 취약하여 콘크리트 외벽에 충돌할 때마다 붕괴가 가속되지만, <strong>동료 로봇에 부딪히면 완충 효과로 인해 지반 충격을 최소화</strong>합니다.
+              </p>
+              <p class="lobby-lore-line">
+                원격 서포트 로봇들의 제어권을 잡고, 외벽 충돌을 줄이고 동료 완충을 적극 활용하여 고장 난 로봇들을 안전한 탈출구로 인도하세요!
+              </p>
+            </div>
+            <button
+              type="button"
+              id="btn-lore-toggle"
+              class="lobby-lore-toggle-btn"
+              aria-expanded="false"
+              aria-controls="lobby-lore-body"
+            >
+              <span id="lore-toggle-label">작전 브리핑 펼쳐보기</span>
+              <span id="lore-toggle-icon" class="lore-toggle-icon">▾</span>
+            </button>
+          </div>
         </div>
       </div>
-
-      <!-- 세계관 브리핑 (기본 접힘 · 클릭 시 펼쳐보기) -->
-      <article class="lobby-lore-card">
-        <button
-          type="button"
-          id="btn-lore-toggle"
-          class="lobby-lore-toggle"
-          aria-expanded="false"
-          aria-controls="lobby-lore-body"
-        >
-          <div class="lore-toggle-head">
-            <span class="lobby-lore-title">작전 브리핑 · 지하 폐기장 붕괴와 완충 제어</span>
-            <span class="lobby-lore-preview">제동력을 잃은 로봇들을 동료 로봇과의 완충 충돌로 안전하게 유도하세요.</span>
-          </div>
-          <span id="lore-toggle-badge" class="lore-toggle-badge">펼쳐보기 ▾</span>
-        </button>
-
-        <div id="lobby-lore-body" class="lobby-lore-body" hidden>
-          <p class="lobby-lore-line">
-            버려진 로봇 공장의 지하 깊은 곳, 원인 불명의 시스템 에러로 폐기장 시설이 전면 붕괴하기 시작했습니다.
-          </p>
-          <p class="lobby-lore-line">
-            그 충격으로 격리되어 있던 로봇들은 자세 제어 장치와 마찰력을 상실했습니다.
-          </p>
-          <p class="lobby-lore-line">
-            한 번 미끄러지면 <strong>벽이나 다른 로봇에 부딪히기 전까지는 스스로 멈출 수 없는 상태</strong>입니다.
-          </p>
-          <p class="lobby-lore-line">
-            지하 지반은 현재 충격에 극도로 취약하여, 단단한 콘크리트 외벽에 충돌할 때마다 위험한 진동이 발생해 붕괴가 가속됩니다.
-          </p>
-          <p class="lobby-lore-line">
-            반면 <strong>다른 동료 로봇에 부딪혀 멈추면, 로봇에 내장된 유압식 충격 흡수 장치(완충)가 작동해 지반으로 가해지는 충격파를 완벽히 흡수·분산</strong>시킵니다.
-          </p>
-          <p class="lobby-lore-line">
-            지반이 완전히 무너지기 전에 서포트 로봇들의 원격 제어권을 잡고, 불필요한 기동과 외벽 충돌을 줄여 고장 난 로봇들을 안전한 탈출구까지 가이드하세요!
-          </p>
-        </div>
-      </article>
 
       <!-- 대원 인증 (로그인 / 원스톱 자동 가입) 카드 -->
       <div id="lobby-auth-card" class="lobby-auth-card">
@@ -289,21 +303,29 @@
               <span class="mode-btn-title">🏆 순위표</span>
               <span class="mode-btn-desc">일일 챌린지 · 무한 모드 랭킹</span>
             </div>
-            <span class="mode-guide-badge">랭킹 ▸</span>
           </button>
 
-          <button
-            type="button"
+          <div
             id="btn-how-to-play"
             class="lobby-mode-btn is-guide"
-            aria-label="게임 방법 및 규칙 보기"
+            role="button"
+            tabindex="0"
+            aria-label="튜토리얼 기본 규칙 연습 시작"
           >
             <div class="mode-btn-info">
-              <span class="mode-btn-title">📖 게임 방법</span>
-              <span class="mode-btn-desc">조작법 · 탈출 조건 · 완충 가이드</span>
+              <span class="mode-btn-title">🎮 튜토리얼</span>
+              <span class="mode-btn-desc">기본 규칙 연습</span>
             </div>
-            <span class="mode-guide-badge">가이드 ▸</span>
-          </button>
+            <button
+              type="button"
+              id="btn-lobby-guide-text"
+              class="mode-guide-badge"
+              title="조작법 텍스트 매뉴얼 보기"
+              aria-label="조작법 텍스트 매뉴얼 보기"
+            >
+              가이드 ▸
+            </button>
+          </div>
         </div>
       </div>
 
@@ -321,10 +343,11 @@
             <div class="howto-step-item">
               <span class="howto-step-num">01</span>
               <div class="howto-step-body">
-                <strong>직선 미끄러짐 이동 (스와이프 / 방향키)</strong>
+                <strong>로봇 조작법 (터치 스와이프 / PC 키보드)</strong>
                 <p>
-                  로봇을 터치한 뒤 상·하·좌·우로 밀면(PC는 마우스 드래그 또는 방향키/WASD),
-                  <strong>벽이나 다른 로봇에 부딪힐 때까지 직선으로 끝까지 미끄러져 이동</strong>합니다.
+                  <strong>모바일:</strong> 로봇 터치 후 상·하·좌·우 스와이프.<br />
+                  <strong>PC 키보드:</strong> <code>1~4번</code> 로봇 선택 (또는 <code>Tab</code> 순환), <code>방향키</code> 또는 <code>W,A,S,D</code>로 미끄러짐 이동, <code>Z</code> 되돌리기, <code>R</code> 처음부터 다시하기.<br />
+                  벽이나 다른 로봇에 부딪힐 때까지 직선으로 끝까지 미끄러져 이동합니다.
                 </p>
               </div>
             </div>
@@ -376,33 +399,47 @@
       <!-- 상단 정보 표시줄 (HUD) -->
       <header class="hud-header">
         <div class="hud-top-row">
-          <button
-            type="button"
-            id="btn-back-lobby"
-            class="title-home-btn"
-            title="메인 로비로 돌아가기"
-          >
-            <svg viewBox="0 0 24 24" class="icon-svg-sm" aria-hidden="true">
-              <path
-                d="M15 18l-6-6 6-6"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <h1 id="hud-mode-title" class="game-title">무한 모드</h1>
-          </button>
-          <div class="hud-top-actions">
+          <div class="hud-title-group">
             <button
               type="button"
-              id="btn-change-difficulty"
-              class="top-next-btn"
-              title="난이도 변경"
+              id="btn-back-lobby"
+              class="title-home-btn"
+              title="메인 로비로 돌아가기"
             >
-              <span>난이도 변경</span>
+              <svg viewBox="0 0 24 24" class="icon-svg-sm" aria-hidden="true">
+                <path
+                  d="M15 18l-6-6 6-6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <h1 id="hud-mode-title" class="game-title">무한 모드</h1>
             </button>
+            <div class="sound-controls-group">
+              <button
+                type="button"
+                id="btn-bgm-toggle-game"
+                class="sound-toggle-btn"
+                title="배경음악 켜기/끄기"
+                aria-label="배경음악 켜기/끄기"
+              >
+                <span class="sound-icon">🎵</span>
+              </button>
+              <button
+                type="button"
+                id="btn-sfx-toggle-game"
+                class="sound-toggle-btn"
+                title="효과음 켜기/끄기"
+                aria-label="효과음 켜기/끄기"
+              >
+                <span class="sound-icon">🔊</span>
+              </button>
+            </div>
+          </div>
+          <div class="hud-top-actions">
             <button
               type="button"
               id="btn-open-leaderboard"
@@ -478,24 +515,83 @@
         <div id="hud-info-popover" class="hud-info-popover" hidden></div>
       </header>
 
+      <!-- 튜토리얼 단계 미션 안내 카드 -->
+      <div id="tutorial-guide-card" class="tutorial-guide-card" hidden>
+        <div class="tutorial-card-header">
+          <span id="tutorial-step-tag" class="tutorial-step-tag">1단계 / 4단계</span>
+          <strong id="tutorial-step-title" class="tutorial-step-title">기본 이동 &amp; 벽 충돌</strong>
+        </div>
+        <p id="tutorial-step-desc" class="tutorial-step-desc">
+          로봇은 벽에 부딪힐 때까지 멈추지 않고 미끄러집니다! 벽을 이용해 방향을 꺾어 탈출구로 들어가세요.
+        </p>
+        <div id="tutorial-step-hint" class="tutorial-step-hint">
+          💡 빨간 로봇을 선택하고 <strong>← 왼쪽</strong>으로 스와이프한 뒤, 멈추면 <strong>↓ 아래</strong>로 내려보세요.
+        </div>
+      </div>
+
       <!-- 16x16 게임 보드 영역 -->
       <section class="board-wrapper" aria-label="16x16 게임 보드">
         <div id="board-grid" class="board-grid"></div>
         <div id="robots-layer" class="robots-layer"></div>
+        <div id="tutorial-gesture-layer" class="tutorial-gesture-layer" hidden>
+          <div id="tutorial-finger" class="tutorial-finger">
+            <span class="finger-icon">👆</span>
+          </div>
+        </div>
         <div id="rule-toast" class="rule-toast" hidden></div>
         <div id="clear-overlay" class="clear-overlay" hidden>
           <div class="clear-card">
+            <button
+              type="button"
+              id="btn-clear-close"
+              class="clear-close-btn"
+              title="결과창 닫기 (보드판 확인)"
+              aria-label="결과창 닫기"
+            >
+              ✕
+            </button>
             <h2 class="clear-title">구조 성공!</h2>
             <p id="clear-summary" class="clear-summary"></p>
-            <p id="clear-solver-feedback" class="clear-solver-feedback"></p>
+            <p id="clear-solver-feedback" class="clear-solver-feedback" hidden></p>
             <p id="clear-mode-reward" class="clear-mode-reward" hidden></p>
             <p id="clear-best-record" class="clear-best-record"></p>
-            <div class="clear-actions">
-              <button type="button" id="btn-clear-retry" class="clear-btn secondary">다시 도전</button>
-              <button type="button" id="btn-clear-next" class="clear-btn primary">다음 문제</button>
+            <div class="clear-actions-column">
+              <button
+                type="button"
+                id="btn-clear-share"
+                class="clear-btn share-btn"
+                title="일일 챌린지 기록 공유하기"
+                hidden
+              >
+                <svg viewBox="0 0 24 24" class="icon-svg-sm" aria-hidden="true">
+                  <path
+                    d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span id="btn-clear-share-text">기록 공유하기</span>
+              </button>
+              <div class="clear-actions">
+                <button type="button" id="btn-clear-retry" class="clear-btn secondary">다시 도전</button>
+                <button type="button" id="btn-clear-next" class="clear-btn primary">다음 문제</button>
+              </div>
             </div>
           </div>
         </div>
+        <button
+          type="button"
+          id="btn-reopen-clear"
+          class="btn-reopen-clear"
+          hidden
+          title="성공 결과창 다시 열기"
+          aria-label="성공 결과창 다시 열기"
+        >
+          🏆 결과창 다시보기
+        </button>
       </section>
 
       <!-- 하단 모바일 엄지 조작 영역 (좌: 처음부터 / 우: 되돌리기) -->
@@ -593,7 +689,38 @@
           <p class="leaderboard-empty">순위 데이터를 불러오는 중...</p>
         </div>
 
+        <button
+          type="button"
+          id="btn-leaderboard-history"
+          class="leaderboard-history-btn"
+        >
+          📅 지난 순위표 보기
+        </button>
+
         <button type="button" id="btn-leaderboard-close" class="clear-btn primary howto-confirm-btn">닫기</button>
+      </div>
+    </div>
+
+    <!-- 퍼즐 진행 중 뒤로가기 / 로비 이동 확인 모달 -->
+    <div
+      id="leave-confirm-modal"
+      class="howto-modal"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="leave-confirm-title"
+    >
+      <div class="howto-card leave-confirm-card">
+        <div class="leave-confirm-icon" aria-hidden="true">⚠️</div>
+        <h2 id="leave-confirm-title" class="leave-confirm-title">퍼즐 진행 중단 안내</h2>
+        <p class="leave-confirm-desc">
+          로비로 이동하면 <strong>현재 진행 중인 퍼즐이 초기화</strong>됩니다.<br />
+          정말 메인 로비로 나가시겠습니까?
+        </p>
+        <div class="leave-confirm-actions">
+          <button type="button" id="btn-leave-stay" class="clear-btn secondary">취소 (계속하기)</button>
+          <button type="button" id="btn-leave-confirm" class="clear-btn primary is-danger">로비로 나가기</button>
+        </div>
       </div>
     </div>
   </main>
