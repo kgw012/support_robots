@@ -50,6 +50,244 @@ body {
   gap: 10px;
 }
 
+.lobby-screen[hidden],
+.game-screen[hidden],
+.lobby-diff-drawer[hidden],
+.lobby-toast[hidden] {
+  display: none !important;
+}
+
+.game-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 메인 로비 화면 (인트로 & 세계관 & 모드 선택) */
+.lobby-screen {
+  background: var(--bg-panel);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+
+.lobby-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.lobby-sector-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #60a5fa;
+}
+
+.lobby-title {
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.lobby-subtitle {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.lobby-lore-card {
+  background: rgba(15, 20, 28, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lobby-lore-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: -0.01em;
+}
+
+.lobby-lore-text {
+  font-size: 0.79rem;
+  line-height: 1.58;
+  color: #cbd5e1;
+}
+
+.lobby-lore-text strong {
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+.lobby-mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.infinite-mode-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lobby-mode-btn {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 11px;
+  padding: 14px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.lobby-mode-btn:active {
+  transform: scale(0.985);
+}
+
+.lobby-mode-btn.is-locked {
+  opacity: 0.68;
+  background: rgba(15, 20, 28, 0.55);
+  border-style: dashed;
+}
+
+.lobby-mode-btn.is-locked:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lobby-mode-btn.is-primary {
+  background: linear-gradient(135deg, rgba(30, 136, 229, 0.22), rgba(46, 158, 73, 0.18));
+  border-color: rgba(96, 165, 250, 0.42);
+}
+
+.lobby-mode-btn.is-primary:hover {
+  background: linear-gradient(135deg, rgba(30, 136, 229, 0.3), rgba(46, 158, 73, 0.25));
+  border-color: rgba(96, 165, 250, 0.65);
+}
+
+.mode-btn-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mode-btn-title {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.mode-btn-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.mode-lock-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.lobby-diff-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 11px;
+  border-radius: 7px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.lobby-diff-badge:hover {
+  filter: brightness(1.18);
+}
+
+.lobby-diff-badge:active {
+  transform: scale(0.94);
+}
+
+.badge-caret {
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+
+.lobby-diff-drawer {
+  background: rgba(15, 20, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-caption {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.drawer-diff-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.drawer-diff-btn {
+  padding: 7px 4px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.drawer-diff-btn:hover {
+  opacity: 0.95;
+}
+
+.drawer-diff-btn.is-active {
+  opacity: 1;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.lobby-toast {
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(251, 191, 36, 0.38);
+  color: #fde68a;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 /* 상단 헤더 및 상태 표시줄 */
 .hud-header {
   position: relative;
@@ -70,8 +308,31 @@ body {
   gap: 8px;
 }
 
+.title-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 2px 4px 2px 0;
+  border-radius: 6px;
+  transition: opacity 0.15s ease;
+}
+
+.title-home-btn:hover {
+  opacity: 0.82;
+}
+
+.hud-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .game-title {
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -91,13 +352,18 @@ body {
   transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
-.top-next-btn:hover {
+.top-next-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.16);
   color: var(--text-primary);
 }
 
-.top-next-btn:active {
+.top-next-btn:active:not(:disabled) {
   transform: scale(0.96);
+}
+
+.top-next-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 .icon-svg-sm {
@@ -222,6 +488,31 @@ body {
 .popover-diff-item .difficulty-badge {
   min-width: 62px;
   text-align: center;
+}
+
+.popover-diff-select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.popover-diff-select-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.popover-diff-select-btn.is-active {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .target-badge {

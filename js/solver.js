@@ -9,10 +9,11 @@
  *    를 동시에 계산합니다 (최소 1회 90도 방향 전환 Ricochet 필수 규칙 반영).
  * 2. 최단 해결 횟수에 따른 난이도 자동 분류 (4단계):
  *    - Easy: 1~4회
- *    - Normal: 5~8회
- *    - Hard: 9~11회
- *    - Hell: 12회 이상
+ *    - Normal: 5~7회
+ *    - Hard: 8~9회
+ *    - Hell: 10회 이상
  * 3. 6단계 커스텀 승리 우선권 타이 브레이커 비교 함수 및 수치 비노출 힌트 피드백 루틴 제공
+ * 4. 보드 1판의 17개 타깃을 로봇 색상별 4회 탐색만으로 일괄 채점하는 멀티 타깃 스캐너 제공
  */
 
 import { WALL, ROBOT_COLORS } from './boardPresets.js';
@@ -20,9 +21,9 @@ import { PLAYABLE_ROBOTS, isCenterClosedCell } from './state.js';
 
 export const DIFFICULTY_TIERS = Object.freeze({
   EASY: { id: 'easy', label: 'EASY', min: 1, max: 4 },
-  NORMAL: { id: 'normal', label: 'NORMAL', min: 5, max: 8 },
-  HARD: { id: 'hard', label: 'HARD', min: 9, max: 11 },
-  HELL: { id: 'hell', label: 'HELL', min: 12, max: Infinity },
+  NORMAL: { id: 'normal', label: 'NORMAL', min: 5, max: 7 },
+  HARD: { id: 'hard', label: 'HARD', min: 8, max: 9 },
+  HELL: { id: 'hell', label: 'HELL', min: 10, max: Infinity },
 });
 
 /**
@@ -37,10 +38,10 @@ export function classifyDifficulty(minMoves) {
   if (minMoves <= 4) {
     return { id: DIFFICULTY_TIERS.EASY.id, label: DIFFICULTY_TIERS.EASY.label };
   }
-  if (minMoves <= 8) {
+  if (minMoves <= 7) {
     return { id: DIFFICULTY_TIERS.NORMAL.id, label: DIFFICULTY_TIERS.NORMAL.label };
   }
-  if (minMoves <= 11) {
+  if (minMoves <= 9) {
     return { id: DIFFICULTY_TIERS.HARD.id, label: DIFFICULTY_TIERS.HARD.label };
   }
   return { id: DIFFICULTY_TIERS.HELL.id, label: DIFFICULTY_TIERS.HELL.label };
@@ -479,4 +480,221 @@ export function buildSolverFeedback(
     isOptimal: true,
     feedbackMessage: '완벽한 탈출 경로입니다! 최단 이동과 최적 완충을 모두 달성했습니다!',
   };
+}
+
+/**
+ * 후보 퍼즐의 재미 점수(완충 활용도 중심)를 계산합니다.
+ * - 완충 충돌 횟수(maxCollisions)가 많을수록 압도적으로 높은 점수를 부여합니다.
+ * - 완충 횟수가 같다면 완충 밀도(maxCollisions / minMoves)와 이동 깊이를 반영합니다.
+ * @param {{ minMoves: number, maxCollisions: number }} candidate
+ * @returns {number}
+ */
+export function scoreCandidatePuzzle(candidate) {
+  if (!candidate || !candidate.minMoves) return -1;
+  const { minMoves, maxCollisions } = candidate;
+  const hasCollisionBonus = maxCollisions > 0 ? 500 : 0;
+  const collisionScore = maxCollisions * 150;
+  const densityScore = (maxCollisions / Math.max(1, minMoves)) * 60;
+  const depthBonus = Math.min(minMoves, 12) * 2;
+  return hasCollisionBonus + collisionScore + densityScore + depthBonus;
+}
+
+/**
+ * 단일 보드(grid, robots)에 존재하는 17개 타깃 전부를
+ * 로봇 색상별 단 4회의 BFS 패스로 일괄 스캔하여 17개의 후보 문제 데이터를 반환합니다.
+ *
+ * @param {object} board createBoardData 반환 객체 ({ grid, targets, ... })
+ * @param {object} robots 4대 로봇 초기 위치
+ * @param {object} [options]
+ * @param {number} [options.maxDepth=11] 최대 탐색 깊이
+ * @param {number} [options.maxStatesPerColor=35000] 색상당 최대 탐색 상태 수
+ * @returns {Array<{
+ *   board: object,
+ *   initialRobots: object,
+ *   activeTarget: object,
+ *   minMoves: number,
+ *   maxCollisions: number,
+ *   difficulty: { id: string, label: string },
+ *   score: number
+ * }>}
+ */
+export function evaluateBoardCandidates(board, robots, options = {}) {
+  const { maxDepth = 11, maxStatesPerColor = 35000 } = options;
+  const wallTable = buildWallSlideTable(board.grid);
+  const { targets } = board;
+
+  // 각 타깃(0~16)의 최적 결과 저장
+  const resultsByTargetIdx = targets.map(() => ({
+    solved: false,
+    minMoves: null,
+    maxCollisions: 0,
+  }));
+
+  for (const goalColor of PLAYABLE_ROBOTS) {
+    const goalStart = robots[goalColor];
+    if (!goalStart) continue;
+
+    // 현재 색상 로봇이 들어갈 수 있는 타깃(해당 색상 4개 + multi 1개) 필터링
+    const targetMap = new Map(); // cellIdx -> targetIdx
+    for (let tIdx = 0; tIdx < targets.length; tIdx++) {
+      const t = targets[tIdx];
+      if (t.color === goalColor || t.color === ROBOT_COLORS.MULTI) {
+        targetMap.set((t.row << 4) | t.col, tIdx);
+      }
+    }
+
+    let remainingCount = targetMap.size;
+    const solvedAtThisColor = new Map(); // tIdx -> { minMoves, maxCollisions }
+
+    const startTargetPos = (goalStart.row << 4) | goalStart.col;
+    const helperIndices = [];
+    for (const c of PLAYABLE_ROBOTS) {
+      if (c === goalColor) continue;
+      helperIndices.push((robots[c].row << 4) | robots[c].col);
+    }
+
+    const sortedHelpers = packSortedHelpers(
+      helperIndices[0],
+      helperIndices[1],
+      helperIndices[2]
+    );
+    const startKey = encodeStateKey(startTargetPos, 0, sortedHelpers);
+
+    const visited = new Map();
+    visited.set(startKey, 0);
+    let currentLevel = [startKey];
+    let exploredStates = 1;
+
+    function tryEnqueue(nextLevel, nextKey, depth, nextCollisions) {
+      const existing = visited.get(nextKey);
+      if (existing === undefined) {
+        visited.set(nextKey, (depth << 8) | nextCollisions);
+        nextLevel.push(nextKey);
+        exploredStates += 1;
+      } else {
+        const existingDepth = existing >> 8;
+        const existingCols = existing & 255;
+        if (existingDepth === depth && nextCollisions > existingCols) {
+          visited.set(nextKey, (depth << 8) | nextCollisions);
+        }
+      }
+    }
+
+    for (let depth = 1; depth <= maxDepth; depth++) {
+      const nextLevel = [];
+
+      for (let i = 0; i < currentLevel.length; i++) {
+        const stateKey = currentLevel[i];
+        const baseCollisions = visited.get(stateKey) & 255;
+
+        const high10 = Math.floor(stateKey / 16777216);
+        const low24 = stateKey % 16777216;
+
+        const targetPos = high10 >> 2;
+        const axisState = high10 & 3;
+        const h1 = (low24 >> 16) & 255;
+        const h2 = (low24 >> 8) & 255;
+        const h3 = low24 & 255;
+
+        // 1. 목표 로봇 이동
+        for (let dir = 0; dir < 4; dir++) {
+          const res = slideFastWithCollision(wallTable, targetPos, dir, h1, h2, h3);
+          const nextTargetPos = res >> 1;
+          if (nextTargetPos === targetPos) continue;
+
+          const nextCollisions = baseCollisions + (res & 1);
+          const moveAxisBit = (dir & 1) === 0 ? 2 : 1;
+          const nextAxisState = axisState | moveAxisBit;
+
+          if (nextAxisState === 3 && targetMap.has(nextTargetPos)) {
+            const tIdx = targetMap.get(nextTargetPos);
+            const prev = solvedAtThisColor.get(tIdx);
+            if (!prev) {
+              solvedAtThisColor.set(tIdx, {
+                minMoves: depth,
+                maxCollisions: nextCollisions,
+              });
+              remainingCount -= 1;
+            } else if (
+              prev.minMoves === depth &&
+              nextCollisions > prev.maxCollisions
+            ) {
+              prev.maxCollisions = nextCollisions;
+            }
+          }
+
+          const nextKey = encodeStateKey(nextTargetPos, nextAxisState, low24);
+          tryEnqueue(nextLevel, nextKey, depth, nextCollisions);
+          if (exploredStates >= maxStatesPerColor) break;
+        }
+
+        if (exploredStates >= maxStatesPerColor) break;
+
+        // 2. 보조 로봇 1~3 이동
+        const helpers = [h1, h2, h3];
+        for (let hIdx = 0; hIdx < 3; hIdx++) {
+          const curH = helpers[hIdx];
+          const oA = helpers[(hIdx + 1) % 3];
+          const oB = helpers[(hIdx + 2) % 3];
+
+          for (let dir = 0; dir < 4; dir++) {
+            const res = slideFastWithCollision(wallTable, curH, dir, targetPos, oA, oB);
+            const nextH = res >> 1;
+            if (nextH === curH) continue;
+            const nextCollisions = baseCollisions + (res & 1);
+            const nextHelpers = packSortedHelpers(nextH, oA, oB);
+            const nextKey = encodeStateKey(targetPos, axisState, nextHelpers);
+            tryEnqueue(nextLevel, nextKey, depth, nextCollisions);
+            if (exploredStates >= maxStatesPerColor) break;
+          }
+          if (exploredStates >= maxStatesPerColor) break;
+        }
+
+        if (exploredStates >= maxStatesPerColor) break;
+      }
+
+      if (
+        remainingCount <= 0 ||
+        nextLevel.length === 0 ||
+        exploredStates >= maxStatesPerColor
+      ) {
+        break;
+      }
+      currentLevel = nextLevel;
+    }
+
+    // 이번 색상 결과를 전체 타깃 결과에 병합 (multi 타깃은 4색 중 최단 이동 & 최다 완충 선택)
+    for (const [tIdx, info] of solvedAtThisColor.entries()) {
+      const cur = resultsByTargetIdx[tIdx];
+      if (
+        !cur.solved ||
+        info.minMoves < cur.minMoves ||
+        (info.minMoves === cur.minMoves && info.maxCollisions > cur.maxCollisions)
+      ) {
+        resultsByTargetIdx[tIdx] = {
+          solved: true,
+          minMoves: info.minMoves,
+          maxCollisions: info.maxCollisions,
+        };
+      }
+    }
+  }
+
+  return targets.map((target, idx) => {
+    const res = resultsByTargetIdx[idx];
+    const minMoves = res.solved ? res.minMoves : 10; // 탐색 상한 초과 시 최소 10회 이상(HELL)
+    const maxCollisions = res.solved ? res.maxCollisions : 1;
+    const difficulty = classifyDifficulty(minMoves);
+    const candidate = {
+      board,
+      initialRobots: robots,
+      activeTarget: target,
+      minMoves,
+      maxCollisions,
+      difficulty,
+      score: 0,
+    };
+    candidate.score = scoreCandidatePuzzle(candidate);
+    return candidate;
+  });
 }

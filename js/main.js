@@ -10,6 +10,7 @@ import {
   undoLastMove,
   resetCurrentRound,
   updateBestRecord,
+  scheduleBackgroundRefill,
 } from './state.js';
 import {
   syncBoardPixelSize,
@@ -24,6 +25,17 @@ import { bindInputEvents } from './input.js';
 import { evaluateRoundStatus } from './rules.js';
 import { buildSolverFeedback } from './solver.js';
 
+const lobbyScreenEl = document.getElementById('lobby-screen');
+const gameScreenEl = document.getElementById('game-screen');
+const btnModeDailyEl = document.getElementById('btn-mode-daily');
+const btnModeInfiniteEl = document.getElementById('btn-mode-infinite');
+const btnLobbyDiffEl = document.getElementById('btn-lobby-diff');
+const lobbyDiffLabelEl = document.getElementById('lobby-diff-label');
+const lobbyDiffDrawerEl = document.getElementById('lobby-diff-drawer');
+const lobbyToastEl = document.getElementById('lobby-toast');
+const btnBackLobbyEl = document.getElementById('btn-back-lobby');
+const btnChangeDifficultyEl = document.getElementById('btn-change-difficulty');
+
 const boardWrapperEl = document.querySelector('.board-wrapper');
 const boardGridEl = document.getElementById('board-grid');
 const robotsLayerEl = document.getElementById('robots-layer');
@@ -37,6 +49,13 @@ const hudDifficultyBadgeEl = document.getElementById('hud-difficulty-badge');
 const hudMoveBoxEl = document.getElementById('hud-move-box');
 const hudCollisionBoxEl = document.getElementById('hud-collision-box');
 const hudInfoPopoverEl = document.getElementById('hud-info-popover');
+
+const DIFF_META = Object.freeze({
+  easy: { label: 'EASY', range: '1 ~ 4회' },
+  normal: { label: 'NORMAL', range: '5 ~ 7회' },
+  hard: { label: 'HARD', range: '8 ~ 9회' },
+  hell: { label: 'HELL', range: '10회 이상' },
+});
 
 const HUD_INFO_CONTENT = Object.freeze({
   target: `
@@ -53,15 +72,15 @@ const HUD_INFO_CONTENT = Object.freeze({
       </div>
       <div class="popover-diff-item">
         <span class="difficulty-badge diff-normal">NORMAL</span>
-        <span>5 ~ 8회</span>
+        <span>5 ~ 7회</span>
       </div>
       <div class="popover-diff-item">
         <span class="difficulty-badge diff-hard">HARD</span>
-        <span>9 ~ 11회</span>
+        <span>8 ~ 9회</span>
       </div>
       <div class="popover-diff-item">
         <span class="difficulty-badge diff-hell">HELL</span>
-        <span>12회 이상</span>
+        <span>10회 이상</span>
       </div>
     </div>
   `,
@@ -78,9 +97,39 @@ const HUD_INFO_CONTENT = Object.freeze({
 });
 
 let activePopoverType = null;
+let lobbyToastTimer = null;
+
+function buildChangeDifficultyPopoverHTML() {
+  const currentDiff = gameState.selectedDifficultyMode || 'normal';
+  const items = Object.entries(DIFF_META)
+    .map(([diffId, meta]) => {
+      const activeClass = diffId === currentDiff ? 'is-active' : '';
+      return `
+        <button type="button" class="popover-diff-select-btn ${activeClass}" data-select-diff="${diffId}">
+          <span class="difficulty-badge diff-${diffId}">${meta.label}</span>
+          <span>${meta.range}</span>
+        </button>
+      `;
+    })
+    .join('');
+
+  return `
+    <strong>무한 모드 난이도 변경 (선택 시 즉시 새 문제 출제)</strong>
+    <div class="popover-diff-grid">
+      ${items}
+    </div>
+  `;
+}
 
 function showHudPopover(type) {
-  if (!hudInfoPopoverEl || !HUD_INFO_CONTENT[type]) return;
+  if (!hudInfoPopoverEl) return;
+  if (type === 'changeDiff') {
+    activePopoverType = type;
+    hudInfoPopoverEl.innerHTML = buildChangeDifficultyPopoverHTML();
+    hudInfoPopoverEl.hidden = false;
+    return;
+  }
+  if (!HUD_INFO_CONTENT[type]) return;
   activePopoverType = type;
   hudInfoPopoverEl.innerHTML = HUD_INFO_CONTENT[type];
   hudInfoPopoverEl.hidden = false;
@@ -98,6 +147,50 @@ function toggleHudPopover(type) {
   } else {
     showHudPopover(type);
   }
+}
+
+function syncLobbyDifficultyUI() {
+  const diffId = gameState.selectedDifficultyMode || 'normal';
+  const meta = DIFF_META[diffId] || DIFF_META.normal;
+
+  if (btnLobbyDiffEl) {
+    btnLobbyDiffEl.className = `lobby-diff-badge difficulty-badge diff-${diffId}`;
+  }
+  if (lobbyDiffLabelEl) {
+    lobbyDiffLabelEl.textContent = meta.label;
+  }
+  if (lobbyDiffDrawerEl) {
+    const btns = lobbyDiffDrawerEl.querySelectorAll('.drawer-diff-btn');
+    btns.forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.diff === diffId);
+    });
+  }
+}
+
+function showLobbyToast(message) {
+  if (!lobbyToastEl) return;
+  lobbyToastEl.textContent = message;
+  lobbyToastEl.hidden = false;
+  if (lobbyToastTimer) clearTimeout(lobbyToastTimer);
+  lobbyToastTimer = setTimeout(() => {
+    lobbyToastEl.hidden = true;
+  }, 2800);
+}
+
+function enterInfiniteMode() {
+  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+  if (gameScreenEl) gameScreenEl.hidden = false;
+  if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+
+  initGameState({ targetDifficulty: gameState.selectedDifficultyMode });
+  renderAll();
+}
+
+function returnToLobby() {
+  hideHudPopover();
+  syncLobbyDifficultyUI();
+  if (gameScreenEl) gameScreenEl.hidden = true;
+  if (lobbyScreenEl) lobbyScreenEl.hidden = false;
 }
 
 /**
@@ -192,12 +285,30 @@ function handleReset() {
   }
 }
 
+let isNextStageLocked = false;
+
 /**
- * 새로운 라운드(다음 문제) 시작
+ * 새로운 라운드(다음 문제) 시작 (현재 선택된 난이도 유지 + 1초 쿨타임 적용)
  */
-function handleNextStage() {
-  initGameState();
+function handleNextStage(targetDifficulty = gameState.selectedDifficultyMode) {
+  if (isNextStageLocked) return;
+
+  isNextStageLocked = true;
+  if (btnSkipStageEl) {
+    btnSkipStageEl.disabled = true;
+  }
+
+  hideHudPopover();
+  initGameState({ targetDifficulty });
+  syncLobbyDifficultyUI();
   renderAll();
+
+  setTimeout(() => {
+    isNextStageLocked = false;
+    if (btnSkipStageEl) {
+      btnSkipStageEl.disabled = false;
+    }
+  }, 1000);
 }
 
 /**
@@ -215,13 +326,62 @@ function renderAll() {
  * 초기 실행
  */
 function bootstrap() {
-  initGameState();
-  renderAll();
+  syncLobbyDifficultyUI();
+  // 로비에 머무는 동안 백그라운드에서 난이도별 후보맵 바구니를 미리 채워둠
+  scheduleBackgroundRefill(3);
 
   window.addEventListener('resize', () => {
-    syncBoardPixelSize(boardWrapperEl);
+    if (gameScreenEl && !gameScreenEl.hidden) {
+      syncBoardPixelSize(boardWrapperEl);
+    }
   });
 
+  // 1. 메인 로비 이벤트 바인딩
+  if (btnModeDailyEl) {
+    btnModeDailyEl.addEventListener('click', () => {
+      showLobbyToast('🚧 일일 챌린지는 현재 개발 중입니다! 곧 오픈됩니다. (Coming Soon)');
+    });
+  }
+
+  if (btnLobbyDiffEl) {
+    btnLobbyDiffEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (lobbyDiffDrawerEl) {
+        lobbyDiffDrawerEl.hidden = !lobbyDiffDrawerEl.hidden;
+      }
+    });
+  }
+
+  if (lobbyDiffDrawerEl) {
+    lobbyDiffDrawerEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.drawer-diff-btn');
+      if (!btn || !btn.dataset.diff) return;
+      gameState.selectedDifficultyMode = btn.dataset.diff;
+      syncLobbyDifficultyUI();
+      lobbyDiffDrawerEl.hidden = true;
+    });
+  }
+
+  if (btnModeInfiniteEl) {
+    btnModeInfiniteEl.addEventListener('click', (e) => {
+      // 우측 난이도 배지를 누른 경우는 제외
+      if (e.target.closest('#btn-lobby-diff')) return;
+      enterInfiniteMode();
+    });
+    btnModeInfiniteEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target.closest('#btn-lobby-diff')) return;
+        e.preventDefault();
+        enterInfiniteMode();
+      }
+    });
+  }
+
+  if (btnBackLobbyEl) {
+    btnBackLobbyEl.addEventListener('click', returnToLobby);
+  }
+
+  // 2. 인게임 보드 및 상단/하단 버튼 이벤트 바인딩
   bindInputEvents(boardWrapperEl, {
     onSelectRobot: handleSelectRobot,
     onMoveDirection: handleMoveDirection,
@@ -233,26 +393,47 @@ function bootstrap() {
   if (btnResetEl) {
     btnResetEl.addEventListener('click', handleReset);
   }
+  if (btnChangeDifficultyEl) {
+    btnChangeDifficultyEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleHudPopover('changeDiff');
+    });
+  }
   if (btnSkipStageEl) {
-    btnSkipStageEl.addEventListener('click', handleNextStage);
+    btnSkipStageEl.addEventListener('click', () => handleNextStage());
   }
   if (btnClearRetryEl) {
     btnClearRetryEl.addEventListener('click', handleReset);
   }
   if (btnClearNextEl) {
-    btnClearNextEl.addEventListener('click', handleNextStage);
+    btnClearNextEl.addEventListener('click', () => handleNextStage());
+  }
+
+  if (hudInfoPopoverEl) {
+    hudInfoPopoverEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const selectBtn = e.target.closest('[data-select-diff]');
+      if (!selectBtn) return;
+      const newDiff = selectBtn.dataset.selectDiff;
+      if (!newDiff) return;
+      gameState.selectedDifficultyMode = newDiff;
+      syncLobbyDifficultyUI();
+      hideHudPopover();
+      initGameState({ targetDifficulty: newDiff });
+      renderAll();
+    });
   }
 
   // 상단 목표 배지 / 난이도 배지 호버 및 클릭(모바일 탭) 시 설명 표시
   const bindBadgeInfo = (el, type) => {
     if (!el) return;
     el.addEventListener('mouseenter', () => {
-      if (window.matchMedia('(hover: hover)').matches) {
+      if (window.matchMedia('(hover: hover)').matches && activePopoverType !== 'changeDiff') {
         showHudPopover(type);
       }
     });
     el.addEventListener('mouseleave', () => {
-      if (window.matchMedia('(hover: hover)').matches) {
+      if (window.matchMedia('(hover: hover)').matches && activePopoverType !== 'changeDiff') {
         hideHudPopover();
       }
     });
