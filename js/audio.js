@@ -32,6 +32,11 @@ function getAudioContext() {
     if (AudioContextClass) {
       audioCtx = new AudioContextClass();
       createNoiseBuffer();
+      audioCtx.addEventListener('statechange', () => {
+        if (audioCtx && audioCtx.state === 'running' && !isBGMMutedState && !bgmRunning) {
+          startBGM();
+        }
+      });
     }
   }
   return audioCtx;

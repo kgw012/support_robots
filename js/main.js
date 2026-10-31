@@ -2116,6 +2116,8 @@ async function bootstrap() {
   const cleanupAudioUnlockListeners = () => {
     window.removeEventListener('pointerdown', handleAudioUnlock);
     window.removeEventListener('touchstart', handleAudioUnlock);
+    window.removeEventListener('pointerup', handleAudioUnlock);
+    window.removeEventListener('touchend', handleAudioUnlock);
     window.removeEventListener('click', handleAudioUnlock);
     window.removeEventListener('keydown', handleAudioUnlock);
   };
@@ -2133,8 +2135,13 @@ async function bootstrap() {
 
   window.addEventListener('pointerdown', handleAudioUnlock, { passive: true });
   window.addEventListener('touchstart', handleAudioUnlock, { passive: true });
+  window.addEventListener('pointerup', handleAudioUnlock, { passive: true });
+  window.addEventListener('touchend', handleAudioUnlock, { passive: true });
   window.addEventListener('click', handleAudioUnlock, { passive: true });
   window.addEventListener('keydown', handleAudioUnlock, { passive: true });
+
+  // 1. 페이지 로드 즉시 자동 재생 시도 (브라우저 Autoplay 허용 환경: MEI 활성화, 데스크톱 설정, PWA 등)
+  handleAudioUnlock();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);

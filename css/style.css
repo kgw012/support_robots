@@ -712,14 +712,15 @@ body {
 }
 
 .mode-guide-badge {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
   background: rgba(148, 163, 184, 0.14);
   border: 1px solid rgba(148, 163, 184, 0.3);
   color: #e2e8f0;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 button.mode-guide-badge {
@@ -972,10 +973,14 @@ button.mode-guide-badge:active {
 }
 
 .howto-step-num {
-  font-size: 0.74rem;
-  font-weight: 900;
-  padding: 3px 7px;
-  border-radius: 5px;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   background: rgba(56, 189, 248, 0.16);
   border: 1px solid rgba(56, 189, 248, 0.35);
   color: #38bdf8;
@@ -1005,6 +1010,17 @@ button.mode-guide-badge:active {
   font-size: inherit;
   color: #fde68a;
   font-weight: 700;
+}
+
+.howto-step-body code {
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #38bdf8;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 .howto-confirm-btn {
@@ -1947,7 +1963,33 @@ button.mode-guide-badge:active {
   gap: 8px;
 }
 
-@media (max-width: 420px) {
+.lobby-sub-actions .lobby-mode-btn {
+  padding: 10px 12px;
+  min-height: 58px;
+  gap: 6px;
+}
+
+.lobby-sub-actions .mode-btn-info {
+  min-width: 0;
+  gap: 2px;
+}
+
+.lobby-sub-actions .mode-btn-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.lobby-sub-actions .mode-btn-desc {
+  font-size: 0.68rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 360px) {
   .lobby-sub-actions {
     grid-template-columns: 1fr;
   }
