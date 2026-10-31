@@ -67,6 +67,25 @@ export function bindInputEvents(
   }
 
   // 1. 모바일 터치 이벤트 (touchstart / touchmove / touchend)
+  // 보드판뿐만 아니라 화면 전체(window)에서 좌우 스와이프 시 카카오톡/브라우저 뒤로가기 제스처를 원천 차단합니다.
+  window.addEventListener(
+    'touchmove',
+    (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      if (startX === null || startY === null) return;
+
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - startX);
+      const dy = Math.abs(touch.clientY - startY);
+
+      // 가로 이동이 조금이라도 감지되면 브라우저/카카오톡 엣지 스와이프 뒤로가기 제스처를 즉시 무력화
+      if (dx > dy && dx > 4 && e.cancelable) {
+        e.preventDefault();
+      }
+    },
+    { passive: false }
+  );
+
   boardEl.addEventListener(
     'touchstart',
     (e) => {
@@ -87,7 +106,7 @@ export function bindInputEvents(
   boardEl.addEventListener(
     'touchmove',
     (e) => {
-      // 보드판 위에서 손가락을 미끄러뜨리는 중에는 브라우저/카카오톡 엣지 스와이프 뒤로가기 및 스크롤을 원천 차단
+      // 보드판 위에서의 모든 터치 이동 시 브라우저 기본 동작 차단
       if (startX !== null && e.cancelable) {
         e.preventDefault();
       }
@@ -95,7 +114,7 @@ export function bindInputEvents(
     { passive: false }
   );
 
-  boardEl.addEventListener(
+  window.addEventListener(
     'touchend',
     (e) => {
       if (startX === null || startY === null) return;
