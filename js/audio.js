@@ -193,15 +193,91 @@ let bgmMasterGain = null;
 let bgmCurrentStep = 0;
 let bgmNextNoteTime = 0.0;
 let bgmIntervalId = null;
+let bgmPadVoices = [null, null, null];
+let bgmPadMasterGain = null;
+
+// 8마디 코드 진행에 맞춘 잔잔한 앰비언트 화음 (Am - F - G - Em - Am - Dm - E7 - Am)
+// 최상위 성부(High)와 중간 성부(Mid)가 공통음을 유지하며 부드럽게 이어지는 클래식 보이스 리딩
+const CHORD_PAD_FREQS = [
+  [110.00, 164.81, 261.63], // 1마디: Am (A2, E3, C4)
+  [87.31, 174.61, 261.63],  // 2마디: F  (F2, F3, C4)
+  [98.00, 146.83, 246.94],  // 3마디: G  (G2, D3, B3)
+  [82.41, 164.81, 246.94],  // 4마디: Em (E2, E3, B3)
+  [110.00, 164.81, 261.63], // 5마디: Am (A2, E3, C4)
+  [146.83, 174.61, 220.00], // 6마디: Dm (D3, F3, A3)
+  [82.41, 164.81, 207.65],  // 7마디: E7 (E2, E3, G#3)
+  [110.00, 164.81, 261.63], // 8마디: Am (A2, E3, C4)
+];
+
+/**
+ * 🌌 완전 정온(Zero-Wave) 앰비언트 신스 패드
+ * - '우와앙우와앙' 출렁임의 원인이었던 마디별 스웰/페이드 엔벨로프를 완전히 제거.
+ * - 단일 순수 사인파(Single Sine)를 사용하여 디튠 간섭으로 인한 진폭 맥놀이(Beating) 0% 달성.
+ * - 코드가 바뀔 때만 0.08초의 미세한 크로스페이드로 즉시 전환되며, 마디가 진행되는 동안에는
+ *   볼륨이 흔들림 없이 100% 수평으로 완벽히 일정하게 유지됩니다.
+ * - 공통음(예: Am과 F 사이의 C4)은 끊지 않고 그대로 서스테인을 유지합니다.
+ */
+function playPadChord(chordFreqs, time) {
+  if (!bgmRunning || isBGMMutedState || !audioCtx || !bgmPadMasterGain) return;
+
+  const CROSSFADE = 0.08;   // 80ms 초미세 무소음 크로스페이드 (볼륨 굴곡 없이 매끄럽게 교체)
+  const VOICE_GAIN = 0.007; // 3개 성부 합산 시 잔잔하고 평온한 배경 볼륨 유지
+
+  chordFreqs.forEach((freq, idx) => {
+    const current = bgmPadVoices[idx];
+
+    // 이전 마디와 같은 음정이면 끊김 없이 그대로 지속 (자연스러운 서스테인)
+    if (current && Math.abs(current.freq - freq) < 0.1) {
+      return;
+    }
+
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.linearRampToValueAtTime(VOICE_GAIN, time + CROSSFADE);
+
+      osc.connect(gain);
+      gain.connect(bgmPadMasterGain);
+      osc.start(time);
+
+      if (current) {
+        const oldGain = current.gain;
+        const oldOsc = current.osc;
+        oldGain.gain.setValueAtTime(oldGain.gain.value, time);
+        oldGain.gain.linearRampToValueAtTime(0.0001, time + CROSSFADE);
+        oldOsc.stop(time + CROSSFADE + 0.02);
+        setTimeout(() => {
+          try {
+            oldOsc.disconnect();
+            oldGain.disconnect();
+          } catch (_) {}
+        }, (CROSSFADE + 0.1) * 1000);
+      }
+
+      bgmPadVoices[idx] = { osc, gain, freq };
+    } catch (_) {}
+  });
+}
 
 function playStepNote(step, time) {
   if (!bgmRunning || isBGMMutedState || !audioCtx) return;
+
+  // 8스텝(1마디)마다 새 코드 보이스를 정온 크로스페이드로 매끄럽게 갱신
+  if (step % 8 === 0) {
+    const barIndex = Math.floor(step / 8) % CHORD_PAD_FREQS.length;
+    playPadChord(CHORD_PAD_FREQS[barIndex], time);
+  }
 
   const leadFreq = MELODY_SEQUENCE[step % MELODY_SEQUENCE.length];
   const bassFreq = BASS_SEQUENCE[step % BASS_SEQUENCE.length];
   const arpFreq = ARP_SEQUENCE[step % ARP_SEQUENCE.length];
 
-  // 1. 메인 멜로디 리드 신스 (Square + Lowpass 필터: 레트로 칩튠 스타일)
+  // 1. 메인 멜로디 리드 신스 (키 트래킹 EQ: 불필요한 고주파 잡음 제거 및 멜로디 볼륨 복원)
   if (leadFreq > 0) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -210,18 +286,22 @@ function playStepNote(step, time) {
     osc.type = 'square';
     osc.frequency.setValueAtTime(leadFreq, time);
 
+    // 키 트래킹 저역통과 필터: 각 음정 기본주파수의 1.5배로 컷오프를 맞춰 찌르는 3차 이상 배음만 정돈
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1400, time);
+    filter.frequency.setValueAtTime(Math.max(800, leadFreq * 1.5), time);
+    filter.Q.setValueAtTime(0.7, time);
 
-    gain.gain.setValueAtTime(0.042, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + SECONDS_PER_STEP * 1.6);
+    // 소프트 어택 + 멜로디 존재감 확보 (0.024 -> 0.038로 복원)
+    gain.gain.setValueAtTime(0.001, time);
+    gain.gain.linearRampToValueAtTime(0.038, time + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + SECONDS_PER_STEP * 1.5);
 
     osc.connect(filter);
     filter.connect(gain);
     gain.connect(bgmMasterGain);
 
     osc.start(time);
-    osc.stop(time + SECONDS_PER_STEP * 1.6);
+    osc.stop(time + SECONDS_PER_STEP * 1.5);
   }
 
   // 2. 펑키 베이스 (Triangle: 쫀득하고 둥글둥글한 베이스)
@@ -232,7 +312,7 @@ function playStepNote(step, time) {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(bassFreq, time);
 
-    gain.gain.setValueAtTime(0.055, time);
+    gain.gain.setValueAtTime(0.038, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + SECONDS_PER_STEP * 1.3);
 
     osc.connect(gain);
@@ -250,7 +330,7 @@ function playStepNote(step, time) {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(arpFreq, time);
 
-    gain.gain.setValueAtTime(0.016, time);
+    gain.gain.setValueAtTime(0.012, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + SECONDS_PER_STEP * 0.95);
 
     osc.connect(gain);
@@ -276,13 +356,25 @@ export function startBGM() {
   if (!ctx || ctx.state !== 'running') return;
 
   try {
+    const now = ctx.currentTime;
+
+    // 마스터 BGM 게인 (0.55 수준의 편안한 청취 레벨)
     bgmMasterGain = ctx.createGain();
-    bgmMasterGain.gain.setValueAtTime(0.001, ctx.currentTime);
-    bgmMasterGain.gain.linearRampToValueAtTime(0.85, ctx.currentTime + 0.6);
+    bgmMasterGain.gain.setValueAtTime(0.001, now);
+    bgmMasterGain.gain.linearRampToValueAtTime(0.55, now + 0.8);
     bgmMasterGain.connect(ctx.destination);
 
+    bgmPadVoices = [null, null, null];
+
+    // 신스 패드 전용 마스터 게인 (출렁임 없는 평온한 단일 게인)
+    bgmPadMasterGain = ctx.createGain();
+    bgmPadMasterGain.gain.setValueAtTime(0.001, now);
+    bgmPadMasterGain.gain.linearRampToValueAtTime(1.0, now + 0.3);
+    bgmPadMasterGain.connect(bgmMasterGain);
+
+    // --- 🎵 멜로디 및 앰비언트 패드 시퀀서 시작 ---
     bgmCurrentStep = 0;
-    bgmNextNoteTime = ctx.currentTime + 0.05;
+    bgmNextNoteTime = now + 0.05;
     bgmRunning = true;
 
     bgmIntervalId = setInterval(bgmScheduler, LOOKAHEAD_MS);
@@ -300,17 +392,34 @@ export function stopBGM() {
     bgmIntervalId = null;
   }
 
+  // 활성화된 앰비언트 패드 보이스 정지 및 정리
+  bgmPadVoices.forEach((voice) => {
+    if (voice) {
+      try {
+        voice.osc.stop();
+        voice.osc.disconnect();
+        voice.gain.disconnect();
+      } catch (_) {}
+    }
+  });
+  bgmPadVoices = [null, null, null];
+
+  if (bgmPadMasterGain) {
+    try { bgmPadMasterGain.disconnect(); } catch (_) {}
+    bgmPadMasterGain = null;
+  }
+
   if (bgmMasterGain && audioCtx) {
     try {
       const now = audioCtx.currentTime;
       bgmMasterGain.gain.setValueAtTime(bgmMasterGain.gain.value, now);
-      bgmMasterGain.gain.linearRampToValueAtTime(0.001, now + 0.2);
+      bgmMasterGain.gain.linearRampToValueAtTime(0.001, now + 0.25);
       setTimeout(() => {
         if (bgmMasterGain) {
           try { bgmMasterGain.disconnect(); } catch (_) {}
           bgmMasterGain = null;
         }
-      }, 250);
+      }, 300);
     } catch (_) {}
   }
 }
