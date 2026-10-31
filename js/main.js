@@ -158,6 +158,25 @@ const leaveConfirmModalEl = document.getElementById('leave-confirm-modal');
 const btnLeaveStayEl = document.getElementById('btn-leave-stay');
 const btnLeaveConfirmEl = document.getElementById('btn-leave-confirm');
 
+const puzzleLoadingOverlayEl = document.getElementById('puzzle-loading-overlay');
+const loadingTitleEl = document.getElementById('loading-title');
+const loadingSubEl = document.getElementById('loading-sub');
+
+function showPuzzleLoading(
+  title = '⚙️ 작전 구역 분석 중...',
+  sub = '지반 충격을 최소화하는 최적 경로를 연산하고 있습니다'
+) {
+  if (!puzzleLoadingOverlayEl) return;
+  if (loadingTitleEl) loadingTitleEl.textContent = title;
+  if (loadingSubEl) loadingSubEl.textContent = sub;
+  puzzleLoadingOverlayEl.hidden = false;
+}
+
+function hidePuzzleLoading() {
+  if (!puzzleLoadingOverlayEl) return;
+  puzzleLoadingOverlayEl.hidden = true;
+}
+
 const DIFF_META = Object.freeze({
   easy: { label: 'EASY', range: '1 ~ 4회' },
   normal: { label: 'NORMAL', range: '5 ~ 7회' },
@@ -588,36 +607,51 @@ function enterTutorialMode() {
   trackAnalyticsView('tutorial', true);
 }
 
-function enterInfiniteMode() {
+async function enterInfiniteMode() {
   unlockAudio();
   if (!isBGMMuted()) {
     startBGM();
   }
 
-  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
-  if (gameScreenEl) gameScreenEl.hidden = false;
-  if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
-  if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
-
-  if (tutorialGuideCardEl) {
-    tutorialGuideCardEl.hidden = true;
-    tutorialGuideCardEl.style.display = 'none';
+  const isHell = gameState.selectedDifficultyMode === 'hell';
+  if (isHell) {
+    showPuzzleLoading(
+      '🔥 HELL 작전 구역 분석 중...',
+      '10회 이상 고난도 탈출 경로와 완충 데이터를 정밀 연산하고 있습니다'
+    );
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
   }
-  if (tutorialGestureLayerEl) {
-    tutorialGestureLayerEl.hidden = true;
-  }
-  isTutorialUndoLocked = false;
 
-  initGameState({
-    mode: 'infinite',
-    targetDifficulty: gameState.selectedDifficultyMode,
-  });
-  syncInGameHeaderByMode();
-  renderAll();
-  trackAnalyticsView('infinite', true);
+  try {
+    if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+    if (gameScreenEl) gameScreenEl.hidden = false;
+    if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+    if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
+
+    if (tutorialGuideCardEl) {
+      tutorialGuideCardEl.hidden = true;
+      tutorialGuideCardEl.style.display = 'none';
+    }
+    if (tutorialGestureLayerEl) {
+      tutorialGestureLayerEl.hidden = true;
+    }
+    isTutorialUndoLocked = false;
+
+    await initGameState({
+      mode: 'infinite',
+      targetDifficulty: gameState.selectedDifficultyMode,
+    });
+    syncInGameHeaderByMode();
+    renderAll();
+    trackAnalyticsView('infinite', true);
+  } finally {
+    if (isHell) {
+      hidePuzzleLoading();
+    }
+  }
 }
 
-function enterDailyChallengeMode() {
+async function enterDailyChallengeMode() {
   if (!authState.isLoggedIn) {
     showLobbyToast('🔒 일일 챌린지는 상단에서 대원 접속(로그인) 후 입장할 수 있습니다!');
     if (inputNicknameEl) inputNicknameEl.focus();
@@ -629,31 +663,47 @@ function enterDailyChallengeMode() {
     startBGM();
   }
 
-  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
-  if (gameScreenEl) gameScreenEl.hidden = false;
-  if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
-  if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
-
-  if (tutorialGuideCardEl) {
-    tutorialGuideCardEl.hidden = true;
-    tutorialGuideCardEl.style.display = 'none';
+  const isHell = (gameState.dailyDifficultyMode || 'normal') === 'hell';
+  if (isHell) {
+    showPuzzleLoading(
+      '📡 일일 챌린지 [HELL] 데이터 연산 중...',
+      '오늘의 고난도 10회 이상 수학적 최단 경로를 정밀 검증하고 있습니다'
+    );
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
   }
-  if (tutorialGestureLayerEl) {
-    tutorialGestureLayerEl.hidden = true;
-  }
-  isTutorialUndoLocked = false;
 
-  initGameState({
-    mode: 'daily',
-    targetDifficulty: gameState.dailyDifficultyMode,
-  });
-  syncInGameHeaderByMode();
-  renderAll();
-  trackAnalyticsView('daily', false);
+  try {
+    if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+    if (gameScreenEl) gameScreenEl.hidden = false;
+    if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+    if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
+
+    if (tutorialGuideCardEl) {
+      tutorialGuideCardEl.hidden = true;
+      tutorialGuideCardEl.style.display = 'none';
+    }
+    if (tutorialGestureLayerEl) {
+      tutorialGestureLayerEl.hidden = true;
+    }
+    isTutorialUndoLocked = false;
+
+    await initGameState({
+      mode: 'daily',
+      targetDifficulty: gameState.dailyDifficultyMode,
+    });
+    syncInGameHeaderByMode();
+    renderAll();
+    trackAnalyticsView('daily', false);
+  } finally {
+    if (isHell) {
+      hidePuzzleLoading();
+    }
+  }
 }
 
 function returnToLobby(fromPopState = false) {
   isTutorialUndoLocked = false;
+  hidePuzzleLoading();
   if (btnUndoEl) {
     btnUndoEl.classList.remove('is-pulse-focus');
   }
@@ -1464,7 +1514,7 @@ let isNextStageLocked = false;
 /**
  * 무한 모드 새로운 라운드(다음 문제) 시작 (현재 선택된 난이도 유지 + 1초 쿨타임 적용)
  */
-function handleNextStage(targetDifficulty = gameState.selectedDifficultyMode) {
+async function handleNextStage(targetDifficulty = gameState.selectedDifficultyMode) {
   if (isNextStageLocked) return;
 
   isNextStageLocked = true;
@@ -1472,12 +1522,27 @@ function handleNextStage(targetDifficulty = gameState.selectedDifficultyMode) {
     btnSkipStageEl.disabled = true;
   }
 
-  hideHudPopover();
-  initGameState({ mode: 'infinite', targetDifficulty });
-  syncLobbyDifficultyUI();
-  syncInGameHeaderByMode();
-  renderAll();
-  trackAnalyticsView('infinite', false);
+  const isHell = targetDifficulty === 'hell';
+  if (isHell) {
+    showPuzzleLoading(
+      '🔥 새로운 HELL 퍼즐 생성 중...',
+      '10회 이상 고난도 탈출 경로와 완충 데이터를 정밀 연산하고 있습니다'
+    );
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
+  }
+
+  try {
+    hideHudPopover();
+    await initGameState({ mode: 'infinite', targetDifficulty });
+    syncLobbyDifficultyUI();
+    syncInGameHeaderByMode();
+    renderAll();
+    trackAnalyticsView('infinite', false);
+  } finally {
+    if (isHell) {
+      hidePuzzleLoading();
+    }
+  }
 
   setTimeout(() => {
     isNextStageLocked = false;
@@ -1931,7 +1996,7 @@ async function bootstrap() {
   });
 
   if (hudInfoPopoverEl) {
-    hudInfoPopoverEl.addEventListener('click', (e) => {
+    hudInfoPopoverEl.addEventListener('click', async (e) => {
       e.stopPropagation();
       const selectBtn = e.target.closest('[data-select-diff]');
       if (!selectBtn) return;
@@ -1939,20 +2004,35 @@ async function bootstrap() {
       if (!newDiff) return;
 
       hideHudPopover();
-      if (gameState.gameMode === 'daily') {
-        gameState.dailyDifficultyMode = newDiff;
-        syncLobbyDifficultyUI();
-        initGameState({ mode: 'daily', targetDifficulty: newDiff });
-        syncInGameHeaderByMode();
-        renderAll();
-        trackAnalyticsView('daily', false);
-      } else {
-        gameState.selectedDifficultyMode = newDiff;
-        syncLobbyDifficultyUI();
-        initGameState({ mode: 'infinite', targetDifficulty: newDiff });
-        syncInGameHeaderByMode();
-        renderAll();
-        trackAnalyticsView('infinite', false);
+      const isHell = newDiff === 'hell';
+      if (isHell) {
+        showPuzzleLoading(
+          '🔥 HELL 구역 전환 및 맵 생성 중...',
+          '10회 이상 고난도 탈출 경로와 완충 데이터를 정밀 연산하고 있습니다'
+        );
+        await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
+      }
+
+      try {
+        if (gameState.gameMode === 'daily') {
+          gameState.dailyDifficultyMode = newDiff;
+          syncLobbyDifficultyUI();
+          await initGameState({ mode: 'daily', targetDifficulty: newDiff });
+          syncInGameHeaderByMode();
+          renderAll();
+          trackAnalyticsView('daily', false);
+        } else {
+          gameState.selectedDifficultyMode = newDiff;
+          syncLobbyDifficultyUI();
+          await initGameState({ mode: 'infinite', targetDifficulty: newDiff });
+          syncInGameHeaderByMode();
+          renderAll();
+          trackAnalyticsView('infinite', false);
+        }
+      } finally {
+        if (isHell) {
+          hidePuzzleLoading();
+        }
       }
     });
   }
