@@ -87,7 +87,7 @@ export function createSeededRandom(seedStr) {
  * 전 세계 모든 유저에게 동일한 최고 완충 점수 일일 챌린지 맵을 생성합니다.
  * 후보군 선정 후 단일 타깃 정밀 솔버(solveBoardBFS)로 팩트체크하여 난이도 100% 일치를 보장합니다.
  */
-export function generateDailyChallengePuzzle(dateSeed, difficulty) {
+export async function generateDailyChallengePuzzle(dateSeed, difficulty) {
   const cacheKey = `${dateSeed}::${difficulty}`;
   if (dailyPuzzleCache[cacheKey]) {
     return dailyPuzzleCache[cacheKey];
@@ -128,6 +128,10 @@ export function generateDailyChallengePuzzle(dateSeed, difficulty) {
     if (matchingPool.length >= 2) {
       break;
     }
+
+    // 타임 슬라이싱: 각 보드 검증 완료 후 브라우저 메인 스레드에 0ms 프레임 양보
+    // 저사양 모바일 기기에서도 스피너 60fps 회전 유지 및 ANR(페이지 응답 없음) 원천 차단
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
 
   const targetPool = matchingPool.length > 0 ? matchingPool : allPool;
@@ -200,17 +204,24 @@ export function scheduleBackgroundRefill(boardsToScan = 2) {
   if (backgroundRefillTimer !== null) return;
   scannedBoardsInCycle = 0;
 
+  const scheduleNext = (cb) => {
+    if (typeof window.requestIdleCallback === 'function') {
+      return window.requestIdleCallback(cb, { timeout: 150 });
+    }
+    return setTimeout(cb, 90);
+  };
+
   const step = () => {
     scanBoardIntoBaskets();
     scannedBoardsInCycle += 1;
     if (scannedBoardsInCycle < boardsToScan) {
-      backgroundRefillTimer = setTimeout(step, 35);
+      backgroundRefillTimer = scheduleNext(step);
     } else {
       backgroundRefillTimer = null;
     }
   };
 
-  backgroundRefillTimer = setTimeout(step, 35);
+  backgroundRefillTimer = scheduleNext(step);
 }
 
 /**
@@ -301,7 +312,7 @@ export function cloneRobots(robots) {
  * @param {object} [options.activeTarget] 지정된 목표 타깃 (생략 시 랜덤 타깃 1개 선택)
  * @param {function(): number} [options.randomFn] 난수 함수
  */
-export function initGameState(options = {}) {
+export async function initGameState(options = {}) {
   const {
     mode = gameState.gameMode || 'infinite',
     dateSeed: customDateSeed,
@@ -334,7 +345,7 @@ export function initGameState(options = {}) {
     gameState.dateSeed = effectiveSeed;
     gameState.dailyDifficultyMode = effectiveDiff;
 
-    const dailyPicked = generateDailyChallengePuzzle(effectiveSeed, effectiveDiff);
+    const dailyPicked = await generateDailyChallengePuzzle(effectiveSeed, effectiveDiff);
     board = dailyPicked.board;
     startRobots = cloneRobots(dailyPicked.initialRobots);
     chosenTarget = { ...dailyPicked.activeTarget };
@@ -367,6 +378,8 @@ export function initGameState(options = {}) {
       for (let i = 0; i < 10; i++) {
         scanBoardIntoBaskets(randomFn);
         if (hasDifferentBoard(effectiveDifficulty)) break;
+        // 타임 슬라이싱: 보드 1판 스캔 후 메인 스레드에 0ms 양보하여 부드러운 스피너 회전 보장
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
 
@@ -400,6 +413,7 @@ export function initGameState(options = {}) {
             break;
           }
         }
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
 
       // 최후의 경우 (극단적 탐색 실패 시) 비어있지 않은 인접 난이도 바구니 활용

@@ -637,7 +637,7 @@ async function enterInfiniteMode() {
     }
     isTutorialUndoLocked = false;
 
-    initGameState({
+    await initGameState({
       mode: 'infinite',
       targetDifficulty: gameState.selectedDifficultyMode,
     });
@@ -687,7 +687,7 @@ async function enterDailyChallengeMode() {
     }
     isTutorialUndoLocked = false;
 
-    initGameState({
+    await initGameState({
       mode: 'daily',
       targetDifficulty: gameState.dailyDifficultyMode,
     });
@@ -1533,7 +1533,7 @@ async function handleNextStage(targetDifficulty = gameState.selectedDifficultyMo
 
   try {
     hideHudPopover();
-    initGameState({ mode: 'infinite', targetDifficulty });
+    await initGameState({ mode: 'infinite', targetDifficulty });
     syncLobbyDifficultyUI();
     syncInGameHeaderByMode();
     renderAll();
@@ -2017,14 +2017,14 @@ async function bootstrap() {
         if (gameState.gameMode === 'daily') {
           gameState.dailyDifficultyMode = newDiff;
           syncLobbyDifficultyUI();
-          initGameState({ mode: 'daily', targetDifficulty: newDiff });
+          await initGameState({ mode: 'daily', targetDifficulty: newDiff });
           syncInGameHeaderByMode();
           renderAll();
           trackAnalyticsView('daily', false);
         } else {
           gameState.selectedDifficultyMode = newDiff;
           syncLobbyDifficultyUI();
-          initGameState({ mode: 'infinite', targetDifficulty: newDiff });
+          await initGameState({ mode: 'infinite', targetDifficulty: newDiff });
           syncInGameHeaderByMode();
           renderAll();
           trackAnalyticsView('infinite', false);
