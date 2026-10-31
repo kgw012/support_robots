@@ -75,6 +75,7 @@ const MANGLE_IDENTIFIERS = [
   'loginOrRegisterUser',
   'submitDailyChallengeRecord',
   'fetchDailyLeaderboard',
+  'fetchInfiniteLeaderboard',
   'addInfiniteModeScore',
   'gameState',
   'generateRandomRobots',

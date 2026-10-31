@@ -287,6 +287,21 @@ export async function fetchDailyLeaderboard(dateSeed, difficulty) {
 }
 
 /**
+ * 무한 모드 누적 점수 순위표(상위 50명)를 조회합니다.
+ */
+export async function fetchInfiniteLeaderboard() {
+  const query =
+    `/rest/v1/users` +
+    `?select=id,nickname,infinite_score` +
+    `&infinite_score=gt.0` +
+    `&order=infinite_score.desc,created_at.asc` +
+    `&limit=50`;
+
+  const rows = await supabaseRequest(query);
+  return Array.isArray(rows) ? rows : [];
+}
+
+/**
  * 무한 모드 클리어 시 난이도별 점수를 적립합니다.
  * @param {'easy'|'normal'|'hard'|'hell'} difficulty
  */

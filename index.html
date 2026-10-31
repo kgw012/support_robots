@@ -277,19 +277,34 @@
           </div>
         </div>
 
-        <!-- 3. 게임 방법 버튼 -->
-        <button
-          type="button"
-          id="btn-how-to-play"
-          class="lobby-mode-btn is-guide"
-          aria-label="게임 방법 및 규칙 보기"
-        >
-          <div class="mode-btn-info">
-            <span class="mode-btn-title">게임 방법</span>
-            <span class="mode-btn-desc">조작법 · 탈출 조건 · 동료 로봇 완충 활용 가이드</span>
-          </div>
-          <span class="mode-guide-badge">가이드 ▸</span>
-        </button>
+        <!-- 3. 순위표 & 게임 방법 보조 메뉴 -->
+        <div class="lobby-sub-actions">
+          <button
+            type="button"
+            id="btn-lobby-leaderboard"
+            class="lobby-mode-btn is-guide"
+            aria-label="전체 순위표 보기"
+          >
+            <div class="mode-btn-info">
+              <span class="mode-btn-title">🏆 순위표</span>
+              <span class="mode-btn-desc">일일 챌린지 · 무한 모드 랭킹</span>
+            </div>
+            <span class="mode-guide-badge">랭킹 ▸</span>
+          </button>
+
+          <button
+            type="button"
+            id="btn-how-to-play"
+            class="lobby-mode-btn is-guide"
+            aria-label="게임 방법 및 규칙 보기"
+          >
+            <div class="mode-btn-info">
+              <span class="mode-btn-title">📖 게임 방법</span>
+              <span class="mode-btn-desc">조작법 · 탈출 조건 · 완충 가이드</span>
+            </div>
+            <span class="mode-guide-badge">가이드 ▸</span>
+          </button>
+        </div>
       </div>
 
       <div id="lobby-toast" class="lobby-toast" hidden></div>
@@ -393,7 +408,6 @@
               id="btn-open-leaderboard"
               class="top-next-btn is-gold"
               title="실시간 리더보드 순위표 보기"
-              hidden
             >
               <span>🏆 순위표</span>
             </button>
@@ -557,10 +571,15 @@
       <div class="howto-card leaderboard-card">
         <div class="howto-header">
           <div>
-            <h2 id="leaderboard-modal-title" class="howto-title">🏆 일일 챌린지 순위표</h2>
+            <h2 id="leaderboard-modal-title" class="howto-title">🏆 실시간 순위표</h2>
             <span id="leaderboard-date-subtitle" class="leaderboard-date-sub">오늘의 실시간 랭킹</span>
           </div>
           <button type="button" id="btn-leaderboard-close-top" class="howto-icon-close" aria-label="닫기">✕</button>
+        </div>
+
+        <div id="leaderboard-mode-tabs" class="lb-mode-tabs">
+          <button type="button" class="lb-mode-tab is-active" data-lb-mode="daily">일일 챌린지</button>
+          <button type="button" class="lb-mode-tab" data-lb-mode="infinite">무한 모드 (누적 점수)</button>
         </div>
 
         <div id="leaderboard-diff-tabs" class="drawer-diff-options">

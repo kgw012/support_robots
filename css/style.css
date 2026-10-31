@@ -1403,9 +1403,52 @@ body {
   line-height: 1.4;
 }
 
-/* 일일 챌린지 실시간 리더보드 모달 */
+/* 일일 챌린지 & 무한 모드 실시간 리더보드 모달 */
+.drawer-diff-options[hidden] {
+  display: none !important;
+}
+
+.lobby-sub-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 420px) {
+  .lobby-sub-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .leaderboard-card {
   max-width: 460px;
+}
+
+.lb-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: rgba(11, 15, 22, 0.7);
+  padding: 5px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lb-mode-tab {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lb-mode-tab.is-active {
+  background: #3b82f6;
+  color: #ffffff;
 }
 
 .leaderboard-date-sub {
@@ -1437,6 +1480,18 @@ body {
 }
 
 .lb-header-row,
+.lb-header-row.is-infinite,
+.lb-row.is-infinite {
+  grid-template-columns: 60px 1fr 90px;
+}
+
+.lb-score {
+  text-align: right;
+  font-weight: 800;
+  color: #4ade80;
+  font-variant-numeric: tabular-nums;
+}
+
 .lb-row {
   display: grid;
   grid-template-columns: 52px 1fr 56px 56px 68px;
@@ -1453,6 +1508,18 @@ body {
   color: var(--text-secondary);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: 6px;
+}
+
+.lb-header-row.is-infinite,
+.lb-row.is-infinite {
+  grid-template-columns: 60px 1fr 90px;
+}
+
+.lb-score {
+  text-align: right;
+  font-weight: 800;
+  color: #4ade80;
+  font-variant-numeric: tabular-nums;
 }
 
 .lb-row {
