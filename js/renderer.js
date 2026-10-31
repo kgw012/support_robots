@@ -62,6 +62,29 @@ export function getTargetSymbolSVG(color = '') {
 }
 
 /**
+ * 모바일(특히 iOS Safari)에서 16등분 격자(1fr)의 서브픽셀 반올림 오차로 인해
+ * 맨 아랫줄/오른쪽 줄이 잘리거나 로봇 좌표(6.25%)와 격자가 어긋나는 현상을 방지하기 위해,
+ * 보드 내부 크기를 정확히 16px의 배수로 맞춤 정렬합니다.
+ *
+ * @param {HTMLElement} boardWrapperEl .board-wrapper 엘리먼트
+ */
+export function syncBoardPixelSize(boardWrapperEl) {
+  if (!boardWrapperEl || !boardWrapperEl.parentElement) return;
+
+  const parentWidth = boardWrapperEl.parentElement.clientWidth;
+  if (!parentWidth) return;
+
+  const borderTotal = 8; // 좌우 4px * 2 테두리
+  const availableInner = Math.max(256, parentWidth - borderTotal);
+  const cellPx = Math.floor(availableInner / 16);
+  const exactInnerPx = cellPx * 16;
+  const exactOuterPx = exactInnerPx + borderTotal;
+
+  boardWrapperEl.style.width = `${exactOuterPx}px`;
+  boardWrapperEl.style.height = `${exactOuterPx}px`;
+}
+
+/**
  * 16x16 보드 격자판, 벽, 타깃 심볼 및 중앙 폐쇄 구역을 렌더링합니다.
  * @param {HTMLElement} gridEl #board-grid 엘리먼트
  * @param {object} state gameState 객체
@@ -90,10 +113,12 @@ export function renderBoardGrid(gridEl, state) {
       }
 
       const mask = grid[r][c];
-      if (mask & WALL.NORTH) cell.classList.add('wall-n');
-      if (mask & WALL.EAST) cell.classList.add('wall-e');
-      if (mask & WALL.SOUTH) cell.classList.add('wall-s');
-      if (mask & WALL.WEST) cell.classList.add('wall-w');
+      // 최외곽 테두리(r=0 북, r=15 남, c=0 서, c=15 동)는 .board-wrapper의 외곽 테두리가 담당하므로
+      // 가장자리 칸 내부가 잘려 보이지 않도록 내부 벽에만 클래스를 부여합니다.
+      if ((mask & WALL.NORTH) && r > 0) cell.classList.add('wall-n');
+      if ((mask & WALL.EAST) && c < 15) cell.classList.add('wall-e');
+      if ((mask & WALL.SOUTH) && r < 15) cell.classList.add('wall-s');
+      if ((mask & WALL.WEST) && c > 0) cell.classList.add('wall-w');
 
       // 현재 라운드의 목표 타깃(activeTarget)만 보드에 표시하고 나머지 타깃 심볼은 숨김 처리 (벽만 유지)
       if (

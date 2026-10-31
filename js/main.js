@@ -12,6 +12,7 @@ import {
   updateBestRecord,
 } from './state.js';
 import {
+  syncBoardPixelSize,
   renderBoardGrid,
   renderRobots,
   updateRobotPositions,
@@ -136,6 +137,7 @@ function handleNextStage() {
  * 전체 화면(격자, 로봇, 상단 HUD)을 다시 렌더링합니다.
  */
 function renderAll() {
+  syncBoardPixelSize(boardWrapperEl);
   renderBoardGrid(boardGridEl, gameState);
   renderRobots(robotsLayerEl, gameState, handleSelectRobot);
   renderHUD(gameState);
@@ -148,6 +150,10 @@ function renderAll() {
 function bootstrap() {
   initGameState();
   renderAll();
+
+  window.addEventListener('resize', () => {
+    syncBoardPixelSize(boardWrapperEl);
+  });
 
   bindInputEvents(boardWrapperEl, {
     onSelectRobot: handleSelectRobot,

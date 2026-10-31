@@ -200,6 +200,7 @@ body {
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
+  margin: 0 auto;
   background: var(--bg-board);
   border: 4px solid var(--wall-color);
   border-radius: 6px;
@@ -208,23 +209,35 @@ body {
   touch-action: none;
 }
 
-/* 16x16 CSS Grid */
+/* 16x16 CSS Grid (.robots-layer와 완전히 동일한 inset: 0 절대 좌표계 공유) */
 .board-grid {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   display: grid;
-  grid-template-columns: repeat(16, 1fr);
-  grid-template-rows: repeat(16, 1fr);
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  grid-template-rows: repeat(16, minmax(0, 1fr));
 }
 
 .board-cell {
+  --sh-n: 0 0 0 transparent;
+  --sh-e: 0 0 0 transparent;
+  --sh-s: 0 0 0 transparent;
+  --sh-w: 0 0 0 transparent;
   position: relative;
   border-right: 1px solid var(--cell-grid-line);
   border-bottom: 1px solid var(--cell-grid-line);
+  box-shadow: var(--sh-n), var(--sh-e), var(--sh-s), var(--sh-w);
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+/* 우측 끝 열(16번째 열)과 하단 끝 행(16번째 행)의 불필요한 외곽 격자선 제거 */
+.board-cell[data-col="15"] {
+  border-right: none;
+}
+.board-cell[data-row="15"] {
+  border-bottom: none;
 }
 
 /* 타일 내부 사선 패턴 느낌의 미세한 장식 테두리 */
@@ -253,18 +266,18 @@ body {
 }
 
 /* 비트마스크 벽 렌더링 (북:1, 동:2, 남:4, 서:8)
-   양방향 동기화가 되어 있으므로 각 칸의 안쪽(inset)에 두께를 주어 격자 크기가 틀어지지 않게 처리 */
+   border 대신 inset box-shadow를 사용하여 벽 유무에 따른 칸 내부 레이아웃 밀림을 0px로 차단 */
 .board-cell.wall-n {
-  border-top: 2.5px solid var(--wall-color);
+  --sh-n: inset 0 2.5px 0 0 var(--wall-color);
 }
 .board-cell.wall-e {
-  border-right: 2.5px solid var(--wall-color);
+  --sh-e: inset -2.5px 0 0 0 var(--wall-color);
 }
 .board-cell.wall-s {
-  border-bottom: 2.5px solid var(--wall-color);
+  --sh-s: inset 0 -2.5px 0 0 var(--wall-color);
 }
 .board-cell.wall-w {
-  border-left: 2.5px solid var(--wall-color);
+  --sh-w: inset 2.5px 0 0 0 var(--wall-color);
 }
 
 /* 타깃 심볼 마커 */

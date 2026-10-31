@@ -70,6 +70,7 @@ const MANGLE_IDENTIFIERS = [
   'isTargetColorMatch',
   'evaluateRoundStatus',
   'getTargetSymbolSVG',
+  'syncBoardPixelSize',
   'renderBoardGrid',
   'renderRobots',
   'updateRobotPositions',
