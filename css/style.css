@@ -412,6 +412,21 @@ body {
   text-align: center;
 }
 
+.lobby-credit-footer {
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.69rem;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.45;
+}
+
+.lobby-credit-footer strong {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
 /* 상단 헤더 및 상태 표시줄 */
 .hud-header {
   position: relative;
