@@ -213,6 +213,11 @@ function runBuild() {
   const minifiedHTML = buildHTML(rawHTML);
   fs.writeFileSync(path.join(DIST_DIR, 'index.html'), minifiedHTML, 'utf8');
 
+  const faviconPath = path.join(ROOT_DIR, 'favicon.svg');
+  if (fs.existsSync(faviconPath)) {
+    fs.copyFileSync(faviconPath, path.join(DIST_DIR, 'favicon.svg'));
+  }
+
   console.log('✅ Build complete! Output in dist/:');
   for (const file of fs.readdirSync(DIST_DIR)) {
     const sizeKB = (
