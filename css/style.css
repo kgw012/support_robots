@@ -907,6 +907,7 @@ button.mode-guide-badge:active {
   justify-content: center;
   align-items: center;
   padding: 16px;
+  overscroll-behavior: contain;
 }
 
 .howto-card {
@@ -914,6 +915,9 @@ button.mode-guide-badge:active {
   max-width: 480px;
   max-height: 86dvh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
   background: #161f2c;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 14px;
@@ -1997,6 +2001,11 @@ button.mode-guide-badge:active {
 
 .howto-card.leaderboard-card {
   max-width: 460px;
+  height: min(86dvh, 640px);
+  max-height: 86dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .leave-confirm-card {
@@ -2110,9 +2119,13 @@ button.mode-guide-badge:active {
 }
 
 .leaderboard-body {
-  min-height: 180px;
-  max-height: 46dvh;
+  flex: 1 1 auto;
+  min-height: 120px;
+  max-height: none;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
   background: rgba(11, 15, 22, 0.65);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
@@ -2139,15 +2152,21 @@ button.mode-guide-badge:active {
   padding: 7px 10px;
   border-radius: 7px;
   font-size: 0.78rem;
+  touch-action: pan-y;
 }
 
 .lb-header-row {
+  position: sticky;
+  top: -8px;
+  background: #161f2c;
+  z-index: 2;
+  margin: -8px -8px 0 -8px;
+  padding: 8px 10px;
   font-size: 0.72rem;
   font-weight: 800;
   color: var(--text-secondary);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 6px;
-  border-radius: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px 9px 0 0;
 }
 
 .lb-header-row.is-infinite,
@@ -2342,5 +2361,19 @@ button.mode-guide-badge:active {
     display: block !important;
   }
 }
+
+@media (max-height: 540px) {
+  .howto-card.leaderboard-card {
+    height: auto;
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
+  .leaderboard-body {
+    min-height: 120px;
+    max-height: 220px;
+  }
+}
+
 
 

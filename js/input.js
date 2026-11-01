@@ -66,7 +66,29 @@ export function bindInputEvents(
     return robotEl ? robotEl.dataset.color : null;
   }
 
-  // 1. 모바일 터치 이벤트 (touchstart / touchmove / touchend)
+  /**
+   * 화면에 활성화된(보이는) 모달 또는 풀스크린 오버레이가 있는지 확인합니다.
+   */
+  function isAnyModalActive() {
+    const activeOverlay = document.querySelector(
+      '.howto-modal:not([hidden]), .clear-overlay:not([hidden]), .puzzle-loading-overlay:not([hidden])'
+    );
+    return activeOverlay !== null;
+  }
+
+  /**
+   * 이벤트 타깃이 모달, 대화상자, 상하단 HUD/푸터 또는 버튼 등 상호작용 UI 내부인지 확인합니다.
+   */
+  function isInteractiveOrModalTarget(target) {
+    if (!target || typeof target.closest !== 'function') return false;
+    return Boolean(
+      target.closest(
+        '.howto-modal, .clear-overlay, .puzzle-loading-overlay, .hud-header, .game-footer, button, a, input, select, textarea'
+      )
+    );
+  }
+
+  // 1. 모바일 터치 이벤트 (touchstart / touchmove / touchend / touchcancel)
   // 보드판 내부뿐만 아니라, 보드 좌우의 바깥 패딩면에서 시작된 드래그도 완벽히 수용하여
   // 브라우저 뒤로가기 제스처를 원천 차단하고 선택된 로봇을 정상 이동시킵니다.
   window.addEventListener(
@@ -74,6 +96,13 @@ export function bindInputEvents(
     (e) => {
       if (!e.touches || e.touches.length === 0) return;
       if (!boardEl || boardEl.offsetParent === null) return; // 인게임 화면이 아닐 때는 무시
+
+      // 화면에 활성화된 모달/오버레이가 있거나 모달/UI 영역을 터치한 경우 보드 스와이프 인터셉트 원천 차단
+      if (isAnyModalActive() || isInteractiveOrModalTarget(e.target)) {
+        startX = null;
+        startY = null;
+        return;
+      }
 
       const touch = e.touches[0];
       const rect = boardEl.getBoundingClientRect();
@@ -96,6 +125,12 @@ export function bindInputEvents(
 
   // 보드 높이 영역(보드 + 패딩면)에서 시작된 드래그 중에는 브라우저 뒤로가기 및 스크롤을 즉시 차단
   const handleTouchMove = (e) => {
+    // 모달이 열려 있다면 스와이프 상태를 해제하고 브라우저 기본 스크롤을 방해하지 않음
+    if (isAnyModalActive()) {
+      startX = null;
+      startY = null;
+      return;
+    }
     if (startX !== null && e.cancelable) {
       e.preventDefault();
     }
@@ -108,6 +143,11 @@ export function bindInputEvents(
   window.addEventListener(
     'touchend',
     (e) => {
+      if (isAnyModalActive()) {
+        startX = null;
+        startY = null;
+        return;
+      }
       if (startX === null || startY === null) return;
       if (!e.changedTouches || e.changedTouches.length === 0) return;
 
@@ -129,8 +169,15 @@ export function bindInputEvents(
     { passive: false }
   );
 
+  // 터치 취소(알림 수신, 전화 수신, 제스처 이탈 등) 발생 시 상태 즉시 리셋
+  window.addEventListener('touchcancel', () => {
+    startX = null;
+    startY = null;
+  });
+
   // 2. 데스크톱 마우스 드래그 지원 (mousedown / mouseup)
   boardEl.addEventListener('mousedown', (e) => {
+    if (isAnyModalActive() || isInteractiveOrModalTarget(e.target)) return;
     startX = e.clientX;
     startY = e.clientY;
 
@@ -141,6 +188,11 @@ export function bindInputEvents(
   });
 
   window.addEventListener('mouseup', (e) => {
+    if (isAnyModalActive()) {
+      startX = null;
+      startY = null;
+      return;
+    }
     if (startX === null || startY === null) return;
 
     const dx = e.clientX - startX;
