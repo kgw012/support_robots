@@ -222,15 +222,15 @@ export function handleMoveDirection(direction) {
       board: gameState.board,
       path: getSolutionPath(),
     };
+    const isTutorial = gameState.gameMode === 'tutorial';
+    const isDaily = gameState.gameMode === 'daily';
+
     if (boardWrapperEl) boardWrapperEl.classList.add('is-cleared');
     if (robotsLayerEl) robotsLayerEl.classList.add('is-cleared');
     if (btnReopenClearEl) btnReopenClearEl.hidden = true;
-    if (btnViewSolutionEl) btnViewSolutionEl.hidden = true;
+    if (btnViewSolutionEl) btnViewSolutionEl.hidden = isDaily || isTutorial;
     setTimeout(() => playClear(), 100);
     if (tutorialGestureLayerEl) tutorialGestureLayerEl.hidden = true;
-
-    const isTutorial = gameState.gameMode === 'tutorial';
-    const isDaily = gameState.gameMode === 'daily';
 
     const solverFeedback =
       isDaily || isTutorial
@@ -241,6 +241,10 @@ export function handleMoveDirection(direction) {
             gameState.minMoves,
             gameState.maxCollisions
           );
+
+    if (solverFeedback?.isOptimal) {
+      gameState.isOptimalCleared = true;
+    }
     const bestRecordInfo = isTutorial
       ? null
       : updateBestRecord(gameState.moveCount, gameState.collisionCount);
@@ -295,6 +299,9 @@ export function handleUndo() {
     if (boardWrapperEl) boardWrapperEl.classList.remove('is-cleared');
     if (robotsLayerEl) robotsLayerEl.classList.remove('is-cleared');
     if (btnReopenClearEl) btnReopenClearEl.hidden = true;
+    if (btnViewSolutionEl) {
+      btnViewSolutionEl.hidden = gameState.gameMode === 'daily' || gameState.gameMode === 'tutorial';
+    }
     updateRobotPositions(robotsLayerEl, gameState);
     renderHUD(gameState);
     renderRuleFeedback({ status: 'NONE' });
@@ -330,6 +337,9 @@ export function handleReset() {
     if (boardWrapperEl) boardWrapperEl.classList.remove('is-cleared');
     if (robotsLayerEl) robotsLayerEl.classList.remove('is-cleared');
     if (btnReopenClearEl) btnReopenClearEl.hidden = true;
+    if (btnViewSolutionEl) {
+      btnViewSolutionEl.hidden = gameState.gameMode === 'daily' || gameState.gameMode === 'tutorial';
+    }
     updateRobotPositions(robotsLayerEl, gameState);
     renderHUD(gameState);
     renderRuleFeedback({ status: 'NONE' });
@@ -391,6 +401,9 @@ export function renderAll() {
   }
   if (btnReopenClearEl) {
     btnReopenClearEl.hidden = true;
+  }
+  if (btnViewSolutionEl) {
+    btnViewSolutionEl.hidden = gameState.gameMode === 'daily' || gameState.gameMode === 'tutorial';
   }
   syncBoardPixelSize(boardWrapperEl);
   renderBoardGrid(boardGridEl, gameState);

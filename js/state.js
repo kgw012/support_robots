@@ -400,6 +400,7 @@ export const gameState = {
   undoStack: [],          // 5단계 Undo용 스택
   clearedSolution: null,  // 클리어 시점 풀이 경로 스냅샷 { path, initialRobots, finalRobots, ... }
   solutionViewed: false,  // 무한 모드에서 정답보기를 확인했는지 여부 (확인 시 점수 미지급)
+  isOptimalCleared: false,// 무한 모드에서 최단 이동·최대 완충(최적 경로) 완벽 클리어 달성 여부
   cachedSolution: null,   // 무한 모드 백그라운드 사전 연산 정답 경로 및 이미지 캐시 { boardId, minMoves, path, dataUrl }
 };
 
@@ -661,6 +662,7 @@ export async function initGameState(options = {}) {
   gameState.undoStack = [];
   gameState.clearedSolution = null;
   gameState.solutionViewed = false;
+  gameState.isOptimalCleared = false;
   gameState.cachedSolution = null;
 
   if (gameState.gameMode === 'infinite' && _solutionWarmupHook) {

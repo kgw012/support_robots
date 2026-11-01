@@ -136,12 +136,26 @@ export function warmupCurrentSolution() {
 
 /**
  * 정답 확인 경고 모달 열기
+ * - 최적 경로 달성 전 (미골인 or 비최적 골인으로 점수 미획득 상태):
+ *   정답 확인 시 이번 문제 점수 미지급 경고 팝업 표시
+ * - 최적 경로 완벽 달성 후 (이미 점수 획득 완료 상태):
+ *   더 이상 패널티가 없으므로 경고 팝업 없이 0ms 즉시 정답 사진 표출
  */
 export function openSolutionConfirmModal() {
   playButtonClick();
   if (gameState.gameMode !== 'infinite') return;
-  if (gameState.isCleared) return;
 
+  // 이미 이번 문제에서 '최적 경로(완벽 클리어)'를 달성하여 점수 획득을 마친 상태라면
+  // 감점이나 패널티가 없으므로 경고 팝업 없이 0ms 즉시 정답 사진 표출
+  const hasAchievedOptimal = gameState.isOptimalCleared || gameState.infiniteRewardClaimed;
+  if (hasAchievedOptimal) {
+    handleConfirmViewSolution();
+    return;
+  }
+
+  // 아직 최적 경로를 달성하지 못해 점수를 얻을 기회가 남아있는 상태라면
+  // (골인 전 또는 골인은 했으나 비최적이어서 점수를 아직 못 받은 상태)
+  // 정답 확인 시 이번 문제 점수가 미지급된다는 경고 확인 팝업 표출
   if (solutionConfirmModalEl) {
     solutionConfirmModalEl.hidden = false;
   }
