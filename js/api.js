@@ -333,13 +333,15 @@ export async function fetchDailyHistoryLeaderboard(difficulty) {
 /**
  * 무한 모드 누적 점수 순위표(상위 50명)를 조회합니다.
  */
+/**
+ * 무한 모드 누적 점수 순위표(상위 100명)를 조회합니다 (DB 뷰 v_infinite_leaderboard 연동).
+ */
 export async function fetchInfiniteLeaderboard() {
   const query =
-    `/rest/v1/users` +
-    `?select=id,nickname,infinite_score` +
-    `&infinite_score=gt.0` +
-    `&order=infinite_score.desc,created_at.asc` +
-    `&limit=50`;
+    `/rest/v1/v_infinite_leaderboard` +
+    `?select=rank,id,nickname,infinite_score` +
+    `&order=rank.asc` +
+    `&limit=100`;
 
   const rows = await supabaseRequest(query);
   return Array.isArray(rows) ? rows : [];

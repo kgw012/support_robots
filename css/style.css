@@ -2127,6 +2127,29 @@ button.mode-guide-badge:active {
   font-variant-numeric: tabular-nums;
 }
 
+.lb-divider-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  color: rgba(148, 163, 184, 0.55);
+  font-size: 0.85rem;
+  letter-spacing: 5px;
+  user-select: none;
+}
+
+.lb-hint-box {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.4;
+}
+
 .lb-row {
   background: rgba(255, 255, 255, 0.03);
   color: var(--text-primary);
@@ -2138,9 +2161,21 @@ button.mode-guide-badge:active {
   border: 1px solid rgba(96, 165, 250, 0.45);
 }
 
+.lb-row.is-out-of-rank {
+  background: rgba(100, 116, 139, 0.12);
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+}
+
 .lb-rank {
   font-weight: 800;
   color: #fde68a;
+}
+
+.lb-rank.is-out-of-rank {
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .lb-nick {
@@ -2257,7 +2292,7 @@ button.mode-guide-badge:active {
 
   .lb-header-row.is-infinite,
   .lb-row.is-infinite {
-    grid-template-columns: 46px 1fr 80px;
+    grid-template-columns: 56px 1fr 76px;
   }
 
   .lb-header-row.is-history,
