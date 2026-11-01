@@ -27,6 +27,7 @@ import {
   playButtonClick,
 } from './audio.js';
 import { restoreAuthSession } from './api.js';
+import { logger } from './logger.js';
 
 import {
   openLeaderboardModal,
@@ -74,6 +75,9 @@ import {
  * 초기 실행 (앱 부트스트랩)
  */
 async function bootstrap() {
+  // 브라우저 런타임 글로벌 에러 감지 및 Vercel 로그 연동
+  logger.initGlobalErrorHandlers();
+
   syncLobbyDifficultyUI();
   syncAuthUI();
   syncSoundUI();

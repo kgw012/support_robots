@@ -4,6 +4,8 @@
  *              일일 챌린지 기록 자동 제출/리더보드 조회 및 무한 모드 점수 관리 모듈
  */
 
+import { logger } from './logger.js';
+
 export const SUPABASE_URL = 'https://zpvagsiphemiovqycxbr.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_BZQzWYNjUtKvuQrK-Cz49A_gy89IMni';
 
@@ -152,7 +154,9 @@ async function supabaseRequest(path, { method = 'GET', body = null } = {}) {
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
-    throw new Error(`DB 요청 실패 (${response.status}): ${errText}`);
+    const err = new Error(`DB 요청 실패 (${response.status}): ${errText}`);
+    logger.error('Supabase request failed', err, { path, status: response.status });
+    throw err;
   }
 
   return response.json();
@@ -264,6 +268,10 @@ export async function loginOrRegisterUser(rawNickname, rawPassword) {
   authState.user = result.user;
   authState.passwordHash = passwordHash;
   saveSessionToStorage(result.user, passwordHash);
+
+  const eventName = result.is_new ? 'user_signup' : 'user_login';
+  logger.track(eventName, { userId: result.user.id });
+  logger.info(eventName, { userId: result.user.id }, true);
 
   return {
     ok: true,

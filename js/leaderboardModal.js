@@ -22,6 +22,7 @@ import {
   btnLeaderboardCloseTopEl,
   btnOpenLeaderboardEl,
 } from './elements.js';
+import { logger } from './logger.js';
 
 let activeLeaderboardMode = 'daily';
 let activeLeaderboardDiff = 'normal';
@@ -370,6 +371,10 @@ export async function openLeaderboardModal(
   }
 
   leaderboardModalEl.hidden = false;
+  logger.track('leaderboard_view', {
+    mode: activeLeaderboardMode,
+    difficulty: activeLeaderboardDiff,
+  });
   await renderCurrentLeaderboard();
 }
 
