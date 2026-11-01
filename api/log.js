@@ -60,16 +60,16 @@ export default async function handler(req, res) {
       serverTimestamp: new Date().toISOString(),
     };
 
-    // Vercel 런타임 로그 스트림에 레벨별 출력
+    // Vercel 런타임 로그 스트림에 레벨별 출력 (목록에서 이벤트명이 바로 보이도록 포맷)
     switch (level.toLowerCase()) {
       case 'error':
-        console.error('[CLIENT_ERROR]', JSON.stringify(logEntry, null, 2));
+        console.error(`[CLIENT_ERROR] ${message}`, JSON.stringify(logEntry, null, 2));
         break;
       case 'warn':
-        console.warn('[CLIENT_WARN]', JSON.stringify(logEntry, null, 2));
+        console.warn(`[CLIENT_WARN] ${message}`, JSON.stringify(logEntry, null, 2));
         break;
       default:
-        console.log('[CLIENT_INFO]', JSON.stringify(logEntry, null, 2));
+        console.log(`[CLIENT_INFO] ${message}`, JSON.stringify(logEntry, null, 2));
         break;
     }
 

@@ -44,15 +44,17 @@ function sanitizeAnalyticsData(data) {
 function sendRemoteLog(level, message, error = null, context = {}) {
   if (typeof window === 'undefined') return;
 
-  const errorKey = `${level}:${message}:${error?.message || ''}`;
   const now = Date.now();
+  const errorKey = `${level}:${message}:${error?.message || ''}`;
   const lastSent = recentErrorTimestamps.get(errorKey) || 0;
 
-  // 5초 내 동일 에러는 중복 전송 방지 (쓰로틀링)
-  if (now - lastSent < DEDUPE_INTERVAL_MS) {
-    return;
+  // 에러/경고의 경우 5초 내 동일 에러는 중복 전송 방지 (무한 루프 에러 폭풍 방어)
+  if (level !== 'info') {
+    if (now - lastSent < DEDUPE_INTERVAL_MS) {
+      return;
+    }
+    recentErrorTimestamps.set(errorKey, now);
   }
-  recentErrorTimestamps.set(errorKey, now);
 
   // 오래된 캐시 정리
   if (recentErrorTimestamps.size > 50) {
@@ -166,6 +168,9 @@ export const logger = {
       } catch (err) {
         // 통계 전송 실패는 사용자 경험을 방해하지 않음
       }
+
+      // Vercel 무료(Hobby) 플랜에서도 Logs 탭에서 실시간 확인할 수 있도록 /api/log로 동시 전송
+      sendRemoteLog('info', eventName, null, cleanData);
     }
   },
 
