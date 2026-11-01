@@ -99,7 +99,7 @@ export async function handleShareDailyRecord() {
 
   if (copied) {
     logger.track('record_shared', {
-      userId: authState.user?.id || 'guest',
+      isLoggedIn: authState.isLoggedIn,
       mode: 'daily',
       difficulty: diffKey,
       method: typeof navigator !== 'undefined' && navigator.clipboard ? 'clipboard' : 'fallback',
@@ -152,7 +152,6 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
       });
       if (res && res.ok) {
         logger.info('daily_challenge_submitted', {
-          userId: authState.user?.id,
           dateSeed: gameState.dateSeed || getTodayKSTDateSeed().seed,
           difficulty: gameState.dailyDifficultyMode,
           moveCount: gameState.moveCount,
@@ -207,7 +206,6 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
     const res = await addInfiniteModeScore(diffId);
     if (res && res.ok) {
       logger.info('infinite_score_claimed', {
-        userId: authState.user?.id,
         difficulty: diffId,
         pointsAdded: res.pointsAdded,
         infiniteScore: res.infiniteScore,

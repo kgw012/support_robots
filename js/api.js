@@ -215,8 +215,8 @@ export async function restoreAuthSession() {
       // 일시적 네트워크 에러 시 캐시된 세션 유지
     }
 
-    logger.track('user_auto_login', { userId: authState.user.id });
-    logger.info('user_auto_login', { userId: authState.user.id }, true);
+    logger.track('user_auto_login');
+    logger.info('user_auto_login');
 
     return authState.user;
   } catch (_) {
@@ -278,8 +278,8 @@ export async function loginOrRegisterUser(rawNickname, rawPassword) {
   saveSessionToStorage(result.user, passwordHash);
 
   const eventName = result.is_new ? 'user_signup' : 'user_login';
-  logger.track(eventName, { userId: result.user.id });
-  logger.info(eventName, { userId: result.user.id }, true);
+  logger.track(eventName);
+  logger.info(eventName);
 
   return {
     ok: true,

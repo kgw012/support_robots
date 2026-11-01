@@ -224,9 +224,8 @@ export function handleMoveDirection(direction) {
       : updateBestRecord(gameState.moveCount, gameState.collisionCount);
 
     renderRuleFeedback(evaluation, solverFeedback, bestRecordInfo);
-    const userId = authState.user?.id || 'guest';
     const clearLogData = {
-      userId,
+      isLoggedIn: authState.isLoggedIn,
       mode: gameState.gameMode,
       difficulty: gameState.gameMode === 'daily' ? gameState.dailyDifficultyMode : gameState.selectedDifficultyMode,
       moveCount: gameState.moveCount,

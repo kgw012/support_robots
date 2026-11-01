@@ -204,7 +204,8 @@ export function initLobbyEvents({
 
   if (btnAuthLogoutEl) {
     btnAuthLogoutEl.addEventListener('click', () => {
-      logger.track('auth_logout');
+      logger.track('user_logout');
+      logger.info('user_logout');
       logoutUser();
       syncAuthUI();
       showLobbyToast('로그아웃되었습니다.');
