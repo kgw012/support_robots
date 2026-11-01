@@ -77,8 +77,9 @@ export async function renderCurrentLeaderboard() {
       leaderboardModalTitleEl.textContent = '🏆 무한 모드 순위표';
     }
     if (leaderboardDateSubEl) {
-      leaderboardDateSubEl.textContent =
-        '완벽 클리어(최단 이동 · 최대 완충) 누적 점수 랭킹 (EASY 10P · NORMAL 25P · HARD 50P · HELL 100P)';
+      leaderboardDateSubEl.textContent = authState.isLoggedIn && authState.user
+        ? '상위 1~3위 명예의 전당 및 나의 경쟁 구역 순위 (EASY 10P · NORMAL 25P · HARD 50P · HELL 100P)'
+        : '완벽 클리어(최단 이동 · 최대 완충) 누적 점수 랭킹 (EASY 10P · NORMAL 25P · HARD 50P · HELL 100P)';
     }
     if (leaderboardDiffTabsEl) {
       leaderboardDiffTabsEl.hidden = true;
@@ -99,6 +100,8 @@ export async function renderCurrentLeaderboard() {
       }
 
       const myId = authState.user?.id;
+      const isLoggedIn = Boolean(authState.isLoggedIn && myId);
+
       const headerHTML = `
         <div class="lb-header-row is-infinite">
           <span>순위</span>
@@ -107,24 +110,103 @@ export async function renderCurrentLeaderboard() {
         </div>
       `;
 
-      const rowsHTML = rows
-        .map((r, idx) => {
-          const rankNum = idx + 1;
-          let rankLabel = `${rankNum}위`;
-          if (rankNum === 1) rankLabel = '🥇 1위';
-          else if (rankNum === 2) rankLabel = '🥈 2위';
-          else if (rankNum === 3) rankLabel = '🥉 3위';
+      const buildRowHTML = (r, rankNum, isMe = false) => {
+        const displayRank = r.rank ? Number(r.rank) : rankNum;
+        let rankLabel = `${displayRank}위`;
+        if (displayRank === 1) rankLabel = '🥇 1위';
+        else if (displayRank === 2) rankLabel = '🥈 2위';
+        else if (displayRank === 3) rankLabel = '🥉 3위';
 
-          const isMe = myId && r.id === myId;
-          return `
-            <div class="lb-row is-infinite ${isMe ? 'is-me' : ''}">
-              <span class="lb-rank">${rankLabel}</span>
-              <span class="lb-nick">${escapeHTML(r.nickname)}${isMe ? ' (나)' : ''}</span>
-              <span class="lb-score">${Number(r.infinite_score || 0).toLocaleString()}P</span>
+        return `
+          <div class="lb-row is-infinite ${isMe ? 'is-me' : ''}">
+            <span class="lb-rank">${rankLabel}</span>
+            <span class="lb-nick">${escapeHTML(r.nickname)}${isMe ? ' (나)' : ''}</span>
+            <span class="lb-score">${Number(r.infinite_score || 0).toLocaleString()}P</span>
+          </div>
+        `;
+      };
+
+      const dividerHTML = `
+        <div class="lb-divider-row" aria-hidden="true">
+          <span>• • •</span>
+        </div>
+      `;
+
+      let rowsHTML = '';
+
+      if (!isLoggedIn) {
+        // 비로그인 시: 전체 순위표 그대로 출력
+        rowsHTML = rows
+          .map((r, idx) => buildRowHTML(r, idx + 1, false))
+          .join('');
+      } else {
+        // 로그인 시: 1~3위 + ... + 본인 및 바로 위/아래 경쟁자 표시
+        const myIndex = rows.findIndex((r) => r.id === myId);
+        const myScore = Number(authState.user?.infinite_score || 0);
+
+        if (myIndex === -1 || myScore === 0) {
+          // 0점이거나 랭킹에 없는 경우: 1~3위 + ... + 본인(순위 밖, 0P)
+          const top3HTML = rows
+            .slice(0, 3)
+            .map((r, idx) => buildRowHTML(r, idx + 1, r.id === myId))
+            .join('');
+
+          const myOutRowHTML = `
+            <div class="lb-row is-infinite is-me is-out-of-rank">
+              <span class="lb-rank is-out-of-rank">순위 밖</span>
+              <span class="lb-nick">${escapeHTML(authState.user.nickname)} (나)</span>
+              <span class="lb-score">${myScore.toLocaleString()}P</span>
             </div>
           `;
-        })
-        .join('');
+
+          const tipHTML = `
+            <div class="lb-hint-box">
+              💡 무한 모드 완벽 클리어 시 누적 점수가 적립되어 순위표에 진입합니다!
+            </div>
+          `;
+
+          rowsHTML = top3HTML + (rows.length > 0 ? dividerHTML : '') + myOutRowHTML + tipHTML;
+        } else {
+          // 랭킹에 존재하는 경우
+          const targetIndices = new Set();
+
+          // 1~3위 추가
+          for (let i = 0; i < Math.min(3, rows.length); i++) {
+            targetIndices.add(i);
+          }
+
+          // 본인 바로 위 경쟁자
+          if (myIndex - 1 >= 0) targetIndices.add(myIndex - 1);
+          // 본인
+          targetIndices.add(myIndex);
+          // 본인 바로 아래 경쟁자
+          if (myIndex + 1 < rows.length) targetIndices.add(myIndex + 1);
+
+          const sortedIndices = Array.from(targetIndices).sort((a, b) => a - b);
+          const parts = [];
+
+          for (let i = 0; i < sortedIndices.length; i++) {
+            const currIdx = sortedIndices[i];
+            const prevIdx = i > 0 ? sortedIndices[i - 1] : null;
+
+            // 이전 항목과 2칸 이상 떨어져 있다면 중간에 ... 삽입
+            if (prevIdx !== null && currIdx > prevIdx + 1) {
+              parts.push(dividerHTML);
+            }
+
+            const r = rows[currIdx];
+            parts.push(buildRowHTML(r, currIdx + 1, r.id === myId));
+          }
+
+          // 본인 아래에 더 많은 랭커가 남아있다면 하단 생략선 추가
+          const lastRenderedIdx = sortedIndices[sortedIndices.length - 1];
+          if (lastRenderedIdx < rows.length - 1) {
+            parts.push(dividerHTML);
+          }
+
+          rowsHTML = parts.join('');
+        }
+      }
 
       leaderboardBodyEl.innerHTML = headerHTML + rowsHTML;
     } catch (err) {
