@@ -16,6 +16,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
 
 const MODULE_ORDER = [
+  'js/logger.js',
   'js/boardPresets.js',
   'js/state.js',
   'js/audio.js',
@@ -186,6 +187,7 @@ const MANGLE_IDENTIFIERS = [
   'getTutorialUndoLocked',
   'setTutorialUndoLocked',
   'syncSoundUI',
+  'logger',
   'renderAll',
   'bootstrap',
 ];

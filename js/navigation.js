@@ -37,6 +37,7 @@ import {
   syncAuthUI,
   showLobbyToast,
 } from './lobbyController.js';
+import { logger } from './logger.js';
 import {
   lobbyScreenEl,
   gameScreenEl,
@@ -219,6 +220,7 @@ export function enterTutorialMode() {
   });
 
   trackAnalyticsView('tutorial', true);
+  logger.track('mode_enter', { mode: 'tutorial' });
 }
 
 export async function enterInfiniteMode() {
@@ -259,6 +261,10 @@ export async function enterInfiniteMode() {
     syncInGameHeaderByMode();
     renderAll();
     trackAnalyticsView('infinite', true);
+    logger.track('mode_enter', {
+      mode: 'infinite',
+      difficulty: gameState.selectedDifficultyMode,
+    });
   } finally {
     hidePuzzleLoading();
   }
@@ -308,6 +314,10 @@ export async function enterDailyChallengeMode() {
     syncInGameHeaderByMode();
     renderAll();
     trackAnalyticsView('daily', false);
+    logger.track('mode_enter', {
+      mode: 'daily',
+      difficulty: gameState.dailyDifficultyMode,
+    });
   } finally {
     hidePuzzleLoading();
   }
@@ -421,6 +431,10 @@ export function checkDailyMidnightTransition() {
 
   // 2. 날짜 변경(자정 통과) 감지
   if (currentSeed !== lastKnownKSTDateSeed) {
+    logger.info('Midnight date transition detected', {
+      prev: lastKnownKSTDateSeed,
+      current: currentSeed,
+    });
     lastKnownKSTDateSeed = currentSeed;
 
     // 로비 날짜 배지 UI 동기화

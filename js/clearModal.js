@@ -12,6 +12,7 @@ import {
   INFINITE_DIFF_POINTS,
 } from './api.js';
 import { playButtonClick } from './audio.js';
+import { logger } from './logger.js';
 import { openDailyExpiredModal } from './navigation.js';
 import {
   clearOverlayEl,
@@ -98,8 +99,15 @@ export async function handleShareDailyRecord() {
   }
 
   if (copied) {
+    logger.track('record_shared', {
+      isLoggedIn: authState.isLoggedIn,
+      mode: 'daily',
+      difficulty: diffKey,
+      method: typeof navigator !== 'undefined' && navigator.clipboard ? 'clipboard' : 'fallback',
+    });
     showShareFeedback('✅ 클립보드 복사 완료!');
   } else {
+    logger.warn('Share copy failed', { diffKey });
     showShareFeedback('⚠️ 복사 실패 (직접 복사해 주세요)');
   }
 }
@@ -179,9 +187,11 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
           clearModeRewardEl.textContent = '✅ 이미 달성한 오늘의 개인 최고 기록이 유지됩니다.';
         }
       } else {
+        logger.warn('Challenge record submission rejected', { res, dateSeed: puzzleDateSeed });
         clearModeRewardEl.textContent = '⚠️ 기록 제출에 실패했습니다. 로그인 상태를 확인해 주세요.';
       }
-    } catch (_) {
+    } catch (err) {
+      logger.error('Failed to submit challenge record', err, { dateSeed: puzzleDateSeed });
       clearModeRewardEl.textContent = '⚠️ 네트워크 오류로 기록을 제출하지 못했습니다.';
     }
     return;

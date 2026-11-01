@@ -14,6 +14,7 @@ import {
   isSFXMuted,
   playButtonClick,
 } from './audio.js';
+import { logger } from './logger.js';
 import {
   authLoginFormEl,
   inputNicknameEl,
@@ -179,8 +180,10 @@ export function initLobbyEvents({
           inputPasswordEl.value
         );
         if (!res.ok) {
+          logger.warn('User auth failed', { message: res.message });
           showAuthFeedback(res.message, false);
         } else {
+          logger.track('auth_success', { isNew: Boolean(res.isNew) });
           if (authFeedbackMsgEl) authFeedbackMsgEl.hidden = true;
           inputPasswordEl.value = '';
           syncAuthUI();
@@ -191,6 +194,7 @@ export function initLobbyEvents({
           );
         }
       } catch (err) {
+        logger.error('Auth request exception', err);
         showAuthFeedback('서버 통신에 실패했습니다. 잠시 후 다시 시도해 주세요.', false);
       } finally {
         if (btnAuthSubmitEl) btnAuthSubmitEl.disabled = false;
@@ -200,6 +204,7 @@ export function initLobbyEvents({
 
   if (btnAuthLogoutEl) {
     btnAuthLogoutEl.addEventListener('click', () => {
+      logger.track('user_logout');
       logoutUser();
       syncAuthUI();
       showLobbyToast('로그아웃되었습니다.');
