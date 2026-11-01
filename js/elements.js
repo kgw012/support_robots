@@ -51,8 +51,9 @@ export const btnSfxToggleGameEl = document.getElementById('btn-sfx-toggle-game')
 export const btnBackLobbyEl = document.getElementById('btn-back-lobby');
 export const hudModeTitleEl = document.getElementById('hud-mode-title');
 export const btnOpenLeaderboardEl = document.getElementById('btn-open-leaderboard');
+export const btnViewSolutionEl = document.getElementById('btn-view-solution');
 
-// 로딩 오버레이 & 이탈 확인 모달 & 일일 챌린지 만료 모달
+// 로딩 오버레이 & 이탈 확인 모달 & 일일 챌린지 만료 모달 & 무한 모드 정답 모달
 export const puzzleLoadingOverlayEl = document.getElementById('puzzle-loading-overlay');
 export const loadingTitleEl = document.getElementById('loading-title');
 export const loadingSubEl = document.getElementById('loading-sub');
@@ -61,6 +62,18 @@ export const btnLeaveStayEl = document.getElementById('btn-leave-stay');
 export const btnLeaveConfirmEl = document.getElementById('btn-leave-confirm');
 export const dailyExpiredModalEl = document.getElementById('daily-expired-modal');
 export const btnDailyExpiredConfirmEl = document.getElementById('btn-daily-expired-confirm');
+
+export const solutionConfirmModalEl = document.getElementById('solution-confirm-modal');
+export const btnSolutionCancelEl = document.getElementById('btn-solution-cancel');
+export const btnSolutionConfirmEl = document.getElementById('btn-solution-confirm');
+
+export const solutionViewModalEl = document.getElementById('solution-view-modal');
+export const solutionViewTitleEl = document.getElementById('solution-view-title');
+export const solutionViewBadgeEl = document.getElementById('solution-view-badge');
+export const solutionViewImgEl = document.getElementById('solution-view-img');
+export const solutionViewLoadingEl = document.getElementById('solution-view-loading');
+export const btnSolutionViewCloseEl = document.getElementById('btn-solution-view-close');
+export const btnSolutionViewCloseTopEl = document.getElementById('btn-solution-view-close-top');
 
 // 인게임 상단 HUD 팝오버
 export const hudTargetBadgeEl = document.getElementById('hud-target-badge');

@@ -34,6 +34,7 @@ import {
   initLeaderboardModal,
 } from './leaderboardModal.js';
 import { initClearModal } from './clearModal.js';
+import { initSolutionViewer } from './solutionViewer.js';
 import {
   syncAuthUI,
   syncLobbyDifficultyUI,
@@ -141,6 +142,9 @@ async function bootstrap() {
       }
     },
   });
+
+  // 4-1. 무한 모드 정답보기 모달 및 확인 팝업 이벤트 바인딩
+  initSolutionViewer();
 
   // 5. 상단 HUD 팝오버 및 인게임 난이도 변경 이벤트 바인딩
   initHudEvents({

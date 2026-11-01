@@ -259,6 +259,13 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
   const diffId = gameState.difficulty?.id || 'normal';
   const expectedPts = INFINITE_DIFF_POINTS[diffId] || 10;
 
+  // 정답보기를 확인한 경우 무한 모드 점수 미지급
+  if (gameState.solutionViewed) {
+    clearModeRewardEl.hidden = false;
+    clearModeRewardEl.textContent = '💡 정답을 확인한 문제이므로 무한 모드 점수가 적립되지 않습니다.';
+    return;
+  }
+
   if (!solverFeedback || !solverFeedback.isOptimal) {
     clearModeRewardEl.hidden = false;
     clearModeRewardEl.textContent = `🎯 최단 이동·최대 완충을 모두 달성하면 +${expectedPts}P가 적립됩니다! [다시 도전]해 보세요.`;

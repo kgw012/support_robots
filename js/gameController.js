@@ -61,6 +61,7 @@ import {
   btnUndoEl,
   btnResetEl,
   btnSkipStageEl,
+  btnViewSolutionEl,
   btnClearRetryEl,
   btnReopenClearEl,
   clearModeRewardEl,
@@ -224,6 +225,7 @@ export function handleMoveDirection(direction) {
     if (boardWrapperEl) boardWrapperEl.classList.add('is-cleared');
     if (robotsLayerEl) robotsLayerEl.classList.add('is-cleared');
     if (btnReopenClearEl) btnReopenClearEl.hidden = true;
+    if (btnViewSolutionEl) btnViewSolutionEl.hidden = true;
     setTimeout(() => playClear(), 100);
     if (tutorialGestureLayerEl) tutorialGestureLayerEl.hidden = true;
 

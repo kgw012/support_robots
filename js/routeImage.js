@@ -765,10 +765,38 @@ function renderFooter(ctx) {
 /**
  * 실제 보드 + 크레파스 질감 풀이 경로를 오프스크린 캔버스에 렌더링하여 반환
  * @param {object} solution
+ * @param {{ pureBoard?: boolean }} [options] pureBoard가 true이면 상하단 텍스트 없이 1:1 순수 보드만 렌더링
  * @returns {HTMLCanvasElement}
  */
-export function renderSolutionCanvas(solution) {
+export function renderSolutionCanvas(solution, options = {}) {
+  const isPureBoard = options.pureBoard === true;
   const canvas = document.createElement('canvas');
+
+  if (isPureBoard) {
+    canvas.width = BOARD_SIZE;
+    canvas.height = BOARD_SIZE;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Canvas 2D Context를 생성할 수 없습니다.');
+    }
+
+    ctx.save();
+    ctx.translate(-BOARD_X, -BOARD_Y);
+
+    // 1. 인게임 실제 보드판 (베이지 타일, 격자선, 다크 메탈릭 벽, 중앙 폐쇄 구역, 목표 탈출구)
+    renderRealBoard(ctx, solution);
+
+    // 2. 인게임 실제 4대 로봇 말 (시작점 initialRobots에 배치)
+    renderRealRobots(ctx, solution.initialRobots);
+
+    // 3. 크레파스 질감 이동 경로 화살표 및 스텝 번호
+    renderCrayonSolutionRoute(ctx, solution.path);
+
+    ctx.restore();
+    return canvas;
+  }
+
   canvas.width = CANVAS_WIDTH;
   canvas.height = CANVAS_HEIGHT;
 

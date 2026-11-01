@@ -47,6 +47,7 @@ import {
   hudModeTitleEl,
   hudDifficultyBadgeEl,
   btnOpenLeaderboardEl,
+  btnViewSolutionEl,
   btnSkipStageEl,
   btnBackLobbyEl,
   tutorialGuideCardEl,
@@ -127,6 +128,9 @@ export function syncInGameHeaderByMode() {
   }
   if (btnOpenLeaderboardEl) {
     btnOpenLeaderboardEl.hidden = isTutorial;
+  }
+  if (btnViewSolutionEl) {
+    btnViewSolutionEl.hidden = isDaily || isTutorial;
   }
   if (btnSkipStageEl) {
     btnSkipStageEl.hidden = isDaily;

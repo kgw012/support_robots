@@ -699,3 +699,159 @@ export function evaluateBoardCandidates(board, robots, options = {}) {
     return candidate;
   });
 }
+
+const SOLVER_COLOR_KEYS = Object.freeze([
+  ROBOT_COLORS.RED,
+  ROBOT_COLORS.GREEN,
+  ROBOT_COLORS.BLUE,
+  ROBOT_COLORS.YELLOW,
+]);
+const SOLVER_DIR_NAMES = Object.freeze(['UP', 'RIGHT', 'DOWN', 'LEFT']);
+
+/**
+ * BFS를 통해 현재 보드와 타깃의 실제 최단 이동 경로(path)를 역추적하여 반환합니다.
+ * 무한 모드 정답보기 기능에서 활용됩니다.
+ *
+ * @param {number[][]} grid 16x16 벽 비트마스크 배열
+ * @param {object} robots 초기 로봇 위치
+ * @param {object} target 목표 타깃
+ * @param {object} [options]
+ * @returns {{ solved: boolean, minMoves: number | null, path: Array, finalRobots: object }}
+ */
+export function solveBoardWithPath(grid, robots, target, options = {}) {
+  const { maxDepth = 18, maxStates = 500000 } = options;
+
+  if (!grid || !robots || !target) {
+    return { solved: false, minMoves: null, path: [], finalRobots: robots };
+  }
+
+  const wallTable = buildWallSlideTable(grid);
+  const goalIdx = (target.row << 4) | target.col;
+  const isMulti = target.color === ROBOT_COLORS.MULTI;
+  const targetColorIdx = isMulti ? -1 : SOLVER_COLOR_KEYS.indexOf(target.color);
+
+  const initPositions = SOLVER_COLOR_KEYS.map((c) => {
+    const pos = robots[c];
+    return pos ? (pos.row << 4) | pos.col : 0;
+  });
+
+  function makeKey(p0, p1, p2, p3, axes) {
+    return (p0 * 16777216 + p1 * 65536 + p2 * 256 + p3) * 256 + axes;
+  }
+
+  function unpackKey(key) {
+    const axes = key % 256;
+    const pos32 = Math.floor(key / 256);
+    const p3 = pos32 % 256;
+    const pos24 = Math.floor(pos32 / 256);
+    const p2 = pos24 % 256;
+    const pos16 = Math.floor(pos24 / 256);
+    const p1 = pos16 % 256;
+    const p0 = Math.floor(pos16 / 256);
+    return { positions: [p0, p1, p2, p3], axes };
+  }
+
+  const initKey = makeKey(initPositions[0], initPositions[1], initPositions[2], initPositions[3], 0);
+
+  // visited: Map<key, { p: parentKey, r: robotIdx, d: dir } | null>
+  const visited = new Map();
+  visited.set(initKey, null);
+
+  let currentLevel = [initKey];
+  let explored = 1;
+
+  for (let depth = 1; depth <= maxDepth; depth++) {
+    const nextLevel = [];
+
+    for (let l = 0; l < currentLevel.length; l++) {
+      const stateKey = currentLevel[l];
+      const { positions, axes } = unpackKey(stateKey);
+
+      for (let rIdx = 0; rIdx < 4; rIdx++) {
+        const currPos = positions[rIdx];
+        const others = [];
+        for (let o = 0; o < 4; o++) {
+          if (o !== rIdx) others.push(positions[o]);
+        }
+
+        const isThisGoalRobot = isMulti || rIdx === targetColorIdx;
+        const robotAxisShift = (3 - rIdx) * 2;
+        const robotAxis = (axes >> robotAxisShift) & 3;
+
+        for (let dir = 0; dir < 4; dir++) {
+          const res = slideFastWithCollision(wallTable, currPos, dir, others[0], others[1], others[2]);
+          const nextPos = res >> 1;
+          if (nextPos === currPos) continue;
+
+          const moveAxisBit = (dir & 1) === 0 ? 2 : 1;
+          const nextRobotAxis = robotAxis | moveAxisBit;
+          const nextAxes = (axes & ~(3 << robotAxisShift)) | (nextRobotAxis << robotAxisShift);
+
+          const nextPositions = [positions[0], positions[1], positions[2], positions[3]];
+          nextPositions[rIdx] = nextPos;
+
+          const nextKey = makeKey(
+            nextPositions[0],
+            nextPositions[1],
+            nextPositions[2],
+            nextPositions[3],
+            nextAxes
+          );
+
+          if (isThisGoalRobot && nextPos === goalIdx && nextRobotAxis === 3) {
+            visited.set(nextKey, { p: stateKey, r: rIdx, d: dir });
+
+            // 역추적
+            const path = [];
+            let curr = nextKey;
+            while (curr !== null) {
+              const edge = visited.get(curr);
+              if (!edge) break;
+              const parentData = unpackKey(edge.p);
+              const fromPos = parentData.positions[edge.r];
+              const currData = unpackKey(curr);
+              const toPos = currData.positions[edge.r];
+
+              path.push({
+                robotColor: SOLVER_COLOR_KEYS[edge.r],
+                from: { row: fromPos >> 4, col: fromPos & 15 },
+                to: { row: toPos >> 4, col: toPos & 15 },
+                direction: SOLVER_DIR_NAMES[edge.d],
+              });
+              curr = edge.p;
+            }
+            path.reverse();
+
+            return {
+              solved: true,
+              minMoves: depth,
+              path: path.map((item, idx) => ({ step: idx + 1, ...item })),
+              finalRobots: {
+                red: { row: nextPositions[0] >> 4, col: nextPositions[0] & 15 },
+                green: { row: nextPositions[1] >> 4, col: nextPositions[1] & 15 },
+                blue: { row: nextPositions[2] >> 4, col: nextPositions[2] & 15 },
+                yellow: { row: nextPositions[3] >> 4, col: nextPositions[3] & 15 },
+              },
+            };
+          }
+
+          if (!visited.has(nextKey)) {
+            visited.set(nextKey, { p: stateKey, r: rIdx, d: dir });
+            nextLevel.push(nextKey);
+            explored += 1;
+            if (explored >= maxStates) break;
+          }
+        }
+        if (explored >= maxStates) break;
+      }
+      if (explored >= maxStates) break;
+    }
+
+    if (nextLevel.length === 0 || explored >= maxStates) {
+      break;
+    }
+    currentLevel = nextLevel;
+  }
+
+  return { solved: false, minMoves: null, path: [], finalRobots: robots };
+}

@@ -445,6 +445,15 @@
             </button>
             <button
               type="button"
+              id="btn-view-solution"
+              class="top-next-btn is-cyan"
+              title="정답 경로 보기 (점수 미지급)"
+              hidden
+            >
+              <span>💡 정답보기</span>
+            </button>
+            <button
+              type="button"
               id="btn-skip-stage"
               class="top-next-btn"
               title="다음 문제로 넘기기"
@@ -722,6 +731,58 @@
         </button>
 
         <button type="button" id="btn-leaderboard-close" class="clear-btn primary howto-confirm-btn">닫기</button>
+      </div>
+    </div>
+
+    <!-- 무한 모드 정답보기 확인 모달 (점수 미지급 경고 안내) -->
+    <div
+      id="solution-confirm-modal"
+      class="howto-modal"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="solution-confirm-title"
+    >
+      <div class="howto-card leave-confirm-card">
+        <div class="leave-confirm-icon" aria-hidden="true">💡</div>
+        <h2 id="solution-confirm-title" class="leave-confirm-title">정답을 확인하시겠습니까?</h2>
+        <p class="leave-confirm-desc">
+          정답 경로를 사진으로 확인하면<br />
+          <strong>이번 문제에서는 무한 모드 점수가 지급되지 않습니다.</strong><br /><br />
+          정답을 보시겠습니까?
+        </p>
+        <div class="leave-confirm-actions">
+          <button type="button" id="btn-solution-cancel" class="clear-btn secondary">아니오 (직접 풀기)</button>
+          <button type="button" id="btn-solution-confirm" class="clear-btn primary">예 (정답 보기)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 무한 모드 정답 사진 뷰어 모달 -->
+    <div
+      id="solution-view-modal"
+      class="howto-modal solution-view-modal"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-label="정답 풀이 경로 사진"
+    >
+      <div class="solution-view-container">
+        <button
+          type="button"
+          id="btn-solution-view-close-top"
+          class="solution-view-close-btn"
+          title="닫기"
+          aria-label="닫기"
+        >
+          ✕
+        </button>
+
+        <div id="solution-view-loading" class="solution-view-loading" hidden>
+          <div class="loading-spinner-ring" aria-hidden="true"></div>
+        </div>
+
+        <img id="solution-view-img" class="solution-view-img" alt="정답 풀이 경로 사진" />
       </div>
     </div>
 

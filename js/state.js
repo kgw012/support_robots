@@ -399,7 +399,19 @@ export const gameState = {
   isCleared: false,       // 현재 라운드 클리어 여부
   undoStack: [],          // 5단계 Undo용 스택
   clearedSolution: null,  // 클리어 시점 풀이 경로 스냅샷 { path, initialRobots, finalRobots, ... }
+  solutionViewed: false,  // 무한 모드에서 정답보기를 확인했는지 여부 (확인 시 점수 미지급)
+  cachedSolution: null,   // 무한 모드 백그라운드 사전 연산 정답 경로 및 이미지 캐시 { boardId, minMoves, path, dataUrl }
 };
+
+let _solutionWarmupHook = null;
+
+/**
+ * 무한 모드 문제 시작 시 백그라운드 정답 웜업을 수행할 훅 함수를 등록합니다.
+ * @param {function} fn
+ */
+export function registerSolutionWarmupHook(fn) {
+  _solutionWarmupHook = typeof fn === 'function' ? fn : null;
+}
 
 /**
  * 특정 좌표가 중앙 폐쇄 구역인지 확인합니다.
@@ -648,6 +660,16 @@ export async function initGameState(options = {}) {
   gameState.isCleared = false;
   gameState.undoStack = [];
   gameState.clearedSolution = null;
+  gameState.solutionViewed = false;
+  gameState.cachedSolution = null;
+
+  if (gameState.gameMode === 'infinite' && _solutionWarmupHook) {
+    try {
+      _solutionWarmupHook();
+    } catch {
+      // 웜업 예외 방어
+    }
+  }
 
   return gameState;
 }
