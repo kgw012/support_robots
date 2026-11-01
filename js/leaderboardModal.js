@@ -408,6 +408,13 @@ export function initLeaderboardModal() {
       }
     });
   }
+
+  // 데스크톱 키보드 ESC 키 모달 닫기 지원
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && leaderboardModalEl && !leaderboardModalEl.hidden) {
+      closeLeaderboardModal();
+    }
+  });
   if (leaderboardModeTabsEl) {
     leaderboardModeTabsEl.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-lb-mode]');

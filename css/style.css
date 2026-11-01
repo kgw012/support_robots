@@ -2060,8 +2060,8 @@ button.mode-guide-badge:active {
 
 .howto-card.leaderboard-card {
   max-width: 460px;
-  height: min(86dvh, 640px);
-  max-height: 86dvh;
+  height: auto;
+  max-height: min(88dvh, 640px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -2178,9 +2178,9 @@ button.mode-guide-badge:active {
 }
 
 .leaderboard-body {
-  flex: 1 1 auto;
-  min-height: 120px;
-  max-height: none;
+  flex: 0 1 auto;
+  min-height: 140px;
+  max-height: min(54dvh, 380px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
@@ -2346,6 +2346,30 @@ button.mode-guide-badge:active {
 
 .leaderboard-history-btn[hidden] {
   display: none !important;
+}
+
+/* 리더보드 모달 하단 닫기 버튼 (세로 팽창 방지 및 단정한 높이 고정) */
+.leaderboard-card #btn-leaderboard-close {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 11px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-top: 6px;
+  border-radius: 8px;
+  background: #22c55e;
+  color: #052e16;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease, background 0.2s ease;
+}
+
+.leaderboard-card #btn-leaderboard-close:hover {
+  background: #16a34a;
+}
+
+.leaderboard-card #btn-leaderboard-close:active {
+  transform: scale(0.98);
 }
 
 .lb-header-row.is-history,

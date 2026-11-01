@@ -354,4 +354,11 @@ export function initLobbyEvents({
       }
     });
   }
+
+  // 데스크톱 키보드 ESC 키 조작법 모달 닫기 지원
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && howtoModalEl && !howtoModalEl.hidden) {
+      closeHowtoModal();
+    }
+  });
 }
