@@ -27,6 +27,13 @@ export const PLAYABLE_ROBOTS = Object.freeze([
   ROBOT_COLORS.YELLOW,
 ]);
 
+export const DIFF_META = Object.freeze({
+  easy: { label: 'EASY', range: '1 ~ 4회' },
+  normal: { label: 'NORMAL', range: '5 ~ 7회' },
+  hard: { label: 'HARD', range: '8 ~ 9회' },
+  hell: { label: 'HELL', range: '10회 이상' },
+});
+
 /**
  * 난이도별 엄선된 후보 맵 바구니 (완충 점수 내림차순 정렬 유지)
  */

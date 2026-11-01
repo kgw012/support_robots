@@ -1,0 +1,412 @@
+/**
+ * @file navigation.js
+ * @description 화면 전환(로비 ↔ 인게임), 모드 진입(튜토리얼, 무한 모드, 일일 챌린지), 세션 이탈 보호 및 브라우저 히스토리 라우팅 모듈
+ */
+
+import {
+  gameState,
+  initGameState,
+  isDailyChallengeReady,
+  isInfinitePuzzleReady,
+  getTodayKSTDateSeed,
+  DIFF_META,
+} from './state.js';
+import { createBoardData } from './boardPresets.js';
+import {
+  getCurrentTutorialStep,
+  getTutorialExpectedMove,
+  getStep3Phase,
+  getStep4Phase,
+  isTutorialFinalStep,
+  resetTutorialProgress,
+} from './tutorial.js';
+import { syncBoardPixelSize } from './renderer.js';
+import { unlockAudio, isBGMMuted, startBGM } from './audio.js';
+import { authState } from './api.js';
+import {
+  updateTutorialStepCard,
+  updateTutorialGestureGuide,
+  setTutorialUndoLocked,
+  hideHudPopover,
+} from './hudController.js';
+import { renderAll, setGameNavigationHandlers } from './gameController.js';
+import {
+  syncLobbyDifficultyUI,
+  syncAuthUI,
+  showLobbyToast,
+} from './lobbyController.js';
+import {
+  lobbyScreenEl,
+  gameScreenEl,
+  puzzleLoadingOverlayEl,
+  loadingTitleEl,
+  loadingSubEl,
+  hudModeTitleEl,
+  hudDifficultyBadgeEl,
+  btnOpenLeaderboardEl,
+  btnSkipStageEl,
+  btnBackLobbyEl,
+  tutorialGuideCardEl,
+  tutorialGestureLayerEl,
+  btnClearNextEl,
+  btnClearShareEl,
+  btnClearShareTextEl,
+  leaveConfirmModalEl,
+  btnLeaveStayEl,
+  btnLeaveConfirmEl,
+  boardWrapperEl,
+  robotsLayerEl,
+  btnReopenClearEl,
+  clearOverlayEl,
+  btnUndoEl,
+  btnClearRetryEl,
+  lobbyDiffDrawerEl,
+  lobbyDailyDiffDrawerEl,
+  inputNicknameEl,
+} from './elements.js';
+
+export function showPuzzleLoading(
+  title = '⚙️ 작전 구역 분석 중...',
+  sub = '지반 충격을 최소화하는 최적 경로를 연산하고 있습니다'
+) {
+  if (!puzzleLoadingOverlayEl) return;
+  if (loadingTitleEl) loadingTitleEl.textContent = title;
+  if (loadingSubEl) loadingSubEl.textContent = sub;
+  puzzleLoadingOverlayEl.hidden = false;
+}
+
+export function hidePuzzleLoading() {
+  if (!puzzleLoadingOverlayEl) return;
+  puzzleLoadingOverlayEl.hidden = true;
+}
+
+/**
+ * SPA 네비게이션 가상 뷰 추적 및 히스토리 관리
+ * @param {'lobby' | 'infinite' | 'daily' | 'tutorial'} viewMode
+ * @param {boolean} pushEntry
+ */
+export function trackAnalyticsView(viewMode, pushEntry = false) {
+  if (typeof window === 'undefined' || !window.history) return;
+  try {
+    const nextUrl = '/';
+    if (pushEntry) {
+      window.history.pushState({ viewMode }, '', nextUrl);
+    } else {
+      window.history.replaceState({ viewMode }, '', nextUrl);
+      window.dispatchEvent(
+        new PopStateEvent('popstate', { state: { viewMode, synthetic: true } })
+      );
+    }
+  } catch (_) {
+    // 무시
+  }
+}
+
+export function syncInGameHeaderByMode() {
+  const isDaily = gameState.gameMode === 'daily';
+  const isTutorial = gameState.gameMode === 'tutorial';
+  const todayInfo = getTodayKSTDateSeed();
+
+  if (hudModeTitleEl) {
+    if (isTutorial) {
+      hudModeTitleEl.textContent = '🎮 튜토리얼';
+    } else if (isDaily) {
+      hudModeTitleEl.textContent = `일일 챌린지 (${todayInfo.shortFormatted})`;
+    } else {
+      hudModeTitleEl.textContent = '무한 모드';
+    }
+  }
+
+  if (hudDifficultyBadgeEl) {
+    hudDifficultyBadgeEl.hidden = isTutorial;
+  }
+  if (btnOpenLeaderboardEl) {
+    btnOpenLeaderboardEl.hidden = isTutorial;
+  }
+  if (btnSkipStageEl) {
+    btnSkipStageEl.hidden = isDaily;
+    const labelSpan = btnSkipStageEl.querySelector('span');
+    if (labelSpan) {
+      labelSpan.textContent = isTutorial ? '다음 단계' : '다음 문제';
+    }
+  }
+
+  if (tutorialGuideCardEl) {
+    tutorialGuideCardEl.hidden = !isTutorial;
+    tutorialGuideCardEl.style.display = isTutorial ? '' : 'none';
+  }
+  if (tutorialGestureLayerEl && !isTutorial) {
+    tutorialGestureLayerEl.hidden = true;
+  }
+  if (!isTutorial) {
+    setTutorialUndoLocked(false);
+  }
+
+  if (btnClearNextEl) {
+    if (isTutorial) {
+      btnClearNextEl.textContent = isTutorialFinalStep() ? '메인 로비로' : '다음 단계로 ▸';
+    } else {
+      btnClearNextEl.textContent = isDaily ? '🏆 순위표 보기' : '다음 문제';
+    }
+  }
+  if (btnClearShareEl) {
+    btnClearShareEl.hidden = isTutorial || !isDaily;
+    btnClearShareEl.classList.remove('copied');
+  }
+  if (btnClearShareTextEl) {
+    btnClearShareTextEl.textContent = '기록 공유하기';
+  }
+}
+
+export function applyTutorialStep(step) {
+  setTutorialUndoLocked(false);
+  if (btnUndoEl) btnUndoEl.classList.remove('is-pulse-focus');
+  if (btnClearRetryEl) btnClearRetryEl.classList.remove('is-pulse-focus');
+
+  const fixedBoard = createBoardData({ quadrantOrder: ['A', 'B', 'C', 'D'] });
+  const target = fixedBoard.targets[step.targetIndex];
+
+  initGameState({
+    mode: 'tutorial',
+    quadrantOrder: ['A', 'B', 'C', 'D'],
+    initialRobots: step.initialRobots,
+    activeTarget: target,
+    minMoves: step.minMoves,
+  });
+
+  const initialExpected = getTutorialExpectedMove(
+    step.stepIndex,
+    gameState.robots,
+    getStep3Phase(),
+    getStep4Phase()
+  );
+  if (initialExpected && initialExpected.robotColor) {
+    gameState.selectedRobot = initialExpected.robotColor;
+  }
+
+  updateTutorialStepCard();
+  syncInGameHeaderByMode();
+  renderAll();
+  requestAnimationFrame(() => {
+    syncBoardPixelSize(boardWrapperEl);
+    updateTutorialGestureGuide();
+  });
+}
+
+export function enterTutorialMode() {
+  unlockAudio();
+  if (!isBGMMuted()) {
+    startBGM();
+  }
+
+  if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+  if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
+
+  if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+  if (gameScreenEl) gameScreenEl.hidden = false;
+
+  resetTutorialProgress();
+  const step = getCurrentTutorialStep();
+  applyTutorialStep(step);
+
+  requestAnimationFrame(() => {
+    syncBoardPixelSize(boardWrapperEl);
+    updateTutorialGestureGuide();
+  });
+
+  trackAnalyticsView('tutorial', true);
+}
+
+export async function enterInfiniteMode() {
+  unlockAudio();
+  if (!isBGMMuted()) {
+    startBGM();
+  }
+
+  const targetDiff = gameState.selectedDifficultyMode || 'normal';
+  const needsLoading = !isInfinitePuzzleReady(targetDiff);
+  if (needsLoading) {
+    showPuzzleLoading(
+      `🔥 [${(DIFF_META[targetDiff]?.label || targetDiff).toUpperCase()}] 구역 분석 중...`,
+      '가장 완충 활용도가 높은 고난도 퍼즐 맵을 엄선하고 있습니다'
+    );
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
+  }
+
+  try {
+    if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+    if (gameScreenEl) gameScreenEl.hidden = false;
+    if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+    if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
+
+    if (tutorialGuideCardEl) {
+      tutorialGuideCardEl.hidden = true;
+      tutorialGuideCardEl.style.display = 'none';
+    }
+    if (tutorialGestureLayerEl) {
+      tutorialGestureLayerEl.hidden = true;
+    }
+    setTutorialUndoLocked(false);
+
+    await initGameState({
+      mode: 'infinite',
+      targetDifficulty: gameState.selectedDifficultyMode,
+    });
+    syncInGameHeaderByMode();
+    renderAll();
+    trackAnalyticsView('infinite', true);
+  } finally {
+    hidePuzzleLoading();
+  }
+}
+
+export async function enterDailyChallengeMode() {
+  if (!authState.isLoggedIn) {
+    showLobbyToast('🔒 일일 챌린지는 상단에서 대원 접속(로그인) 후 입장할 수 있습니다!');
+    if (inputNicknameEl) inputNicknameEl.focus();
+    return;
+  }
+
+  unlockAudio();
+  if (!isBGMMuted()) {
+    startBGM();
+  }
+
+  const targetDiff = gameState.dailyDifficultyMode || 'normal';
+  const needsLoading = !isDailyChallengeReady(targetDiff);
+  if (needsLoading) {
+    showPuzzleLoading(
+      `📡 일일 챌린지 [${(DIFF_META[targetDiff]?.label || targetDiff).toUpperCase()}] 데이터 연산 중...`,
+      '오늘의 최고 완충 수학적 최단 경로를 정밀 연산하고 있습니다'
+    );
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
+  }
+
+  try {
+    if (lobbyScreenEl) lobbyScreenEl.hidden = true;
+    if (gameScreenEl) gameScreenEl.hidden = false;
+    if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+    if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
+
+    if (tutorialGuideCardEl) {
+      tutorialGuideCardEl.hidden = true;
+      tutorialGuideCardEl.style.display = 'none';
+    }
+    if (tutorialGestureLayerEl) {
+      tutorialGestureLayerEl.hidden = true;
+    }
+    setTutorialUndoLocked(false);
+
+    await initGameState({
+      mode: 'daily',
+      targetDifficulty: gameState.dailyDifficultyMode,
+    });
+    syncInGameHeaderByMode();
+    renderAll();
+    trackAnalyticsView('daily', false);
+  } finally {
+    hidePuzzleLoading();
+  }
+}
+
+export function returnToLobby(fromPopState = false) {
+  setTutorialUndoLocked(false);
+  hidePuzzleLoading();
+  if (btnUndoEl) btnUndoEl.classList.remove('is-pulse-focus');
+  if (tutorialGestureLayerEl) tutorialGestureLayerEl.hidden = true;
+  hideHudPopover();
+  if (leaveConfirmModalEl) leaveConfirmModalEl.hidden = true;
+  if (clearOverlayEl) clearOverlayEl.hidden = true;
+  if (tutorialGuideCardEl) {
+    tutorialGuideCardEl.hidden = true;
+    tutorialGuideCardEl.style.display = 'none';
+  }
+  if (boardWrapperEl) boardWrapperEl.classList.remove('is-cleared');
+  if (robotsLayerEl) robotsLayerEl.classList.remove('is-cleared');
+  if (btnReopenClearEl) btnReopenClearEl.hidden = true;
+  if (lobbyDiffDrawerEl) lobbyDiffDrawerEl.hidden = true;
+  if (lobbyDailyDiffDrawerEl) lobbyDailyDiffDrawerEl.hidden = true;
+
+  syncLobbyDifficultyUI();
+  syncAuthUI();
+  if (gameScreenEl) gameScreenEl.hidden = true;
+  if (lobbyScreenEl) lobbyScreenEl.hidden = false;
+  if (!fromPopState) {
+    trackAnalyticsView('lobby', false);
+  }
+}
+
+/**
+ * 인게임 상태에서 뒤로가기 발생 시 이탈 처리
+ * @param {'popstate' | 'backButton'} source
+ */
+export function requestLeaveToLobby(source = 'backButton') {
+  if (gameScreenEl && gameScreenEl.hidden) return;
+  if (leaveConfirmModalEl && !leaveConfirmModalEl.hidden) return;
+
+  const shouldConfirm = !gameState.isCleared && gameState.moveCount > 0;
+
+  if (shouldConfirm) {
+    if (source === 'popstate') {
+      trackAnalyticsView(gameState.gameMode || 'infinite', true);
+    }
+    if (leaveConfirmModalEl) {
+      leaveConfirmModalEl.hidden = false;
+    }
+  } else {
+    returnToLobby(source === 'popstate');
+  }
+}
+
+/**
+ * 화면 전환 및 라우팅 이벤트 바인딩
+ */
+export function initNavigationEvents() {
+  // gameController에 필요한 네비게이션 콜백 주입
+  setGameNavigationHandlers({
+    showPuzzleLoading,
+    hidePuzzleLoading,
+    syncLobbyDifficultyUI,
+    syncInGameHeaderByMode,
+    trackAnalyticsView,
+    syncAuthUI,
+  });
+
+  if (btnBackLobbyEl) {
+    btnBackLobbyEl.addEventListener('click', () => requestLeaveToLobby('backButton'));
+  }
+
+  window.addEventListener('popstate', (e) => {
+    if (e.state && e.state.synthetic) return;
+    if (gameScreenEl && !gameScreenEl.hidden) {
+      requestLeaveToLobby('popstate');
+    }
+  });
+
+  if (btnLeaveStayEl) {
+    btnLeaveStayEl.addEventListener('click', () => {
+      if (leaveConfirmModalEl) leaveConfirmModalEl.hidden = true;
+    });
+  }
+
+  if (btnLeaveConfirmEl) {
+    btnLeaveConfirmEl.addEventListener('click', () => {
+      returnToLobby(false);
+    });
+  }
+
+  if (leaveConfirmModalEl) {
+    leaveConfirmModalEl.addEventListener('click', (e) => {
+      if (e.target === leaveConfirmModalEl) {
+        leaveConfirmModalEl.hidden = true;
+      }
+    });
+  }
+
+  // 플레이 중 4분마다 세션 활성 유지
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && gameScreenEl && !gameScreenEl.hidden) {
+      trackAnalyticsView(gameState.gameMode || 'infinite', false);
+    }
+  }, 240000);
+}
