@@ -116,14 +116,11 @@ export const logger = {
   },
 
   /**
-   * 일반 정보 로그
+   * 일반 정보 로그 (로컬 개발 콘솔 출력 전용)
    */
-  info(message, context = {}, sendToRemote = false) {
+  info(message, context) {
     if (isDevEnvironment()) {
       console.info(`[INFO] ${message}`, context !== undefined ? context : '');
-    }
-    if (sendToRemote) {
-      sendRemoteLog('info', message, null, context);
     }
   },
 

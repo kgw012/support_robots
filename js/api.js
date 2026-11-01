@@ -216,7 +216,6 @@ export async function restoreAuthSession() {
     }
 
     logger.track('user_auto_login');
-    logger.info('user_auto_login');
 
     return authState.user;
   } catch (_) {
@@ -279,7 +278,6 @@ export async function loginOrRegisterUser(rawNickname, rawPassword) {
 
   const eventName = result.is_new ? 'user_signup' : 'user_login';
   logger.track(eventName);
-  logger.info(eventName);
 
   return {
     ok: true,
