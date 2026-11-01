@@ -176,6 +176,13 @@ export function renderRobots(robotsLayerEl, state, onSelectRobot) {
   }
 
   // 2. 4대 로봇 본체 (원형 점 UI, position: absolute) 렌더링
+  const ROBOT_KEY_NUMBERS = {
+    red: '1',
+    green: '2',
+    blue: '3',
+    yellow: '4',
+  };
+
   for (const color of PLAYABLE_ROBOTS) {
     const pos = state.robots[color];
     if (!pos) continue;
@@ -194,6 +201,14 @@ export function renderRobots(robotsLayerEl, state, onSelectRobot) {
 
     const dotInner = document.createElement('span');
     dotInner.className = 'robot-core';
+
+    // 데스크톱 키보드 조작 시 시각적 단축키 안내 번호 배지
+    const keyBadge = document.createElement('span');
+    keyBadge.className = 'robot-key-badge';
+    keyBadge.textContent = ROBOT_KEY_NUMBERS[color] || '';
+    keyBadge.setAttribute('aria-hidden', 'true');
+    dotInner.appendChild(keyBadge);
+
     robotEl.appendChild(dotInner);
 
     if (typeof onSelectRobot === 'function') {

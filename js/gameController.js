@@ -386,6 +386,9 @@ export function initGameControls({ onSkipStage }) {
     bindInputEvents(boardWrapperEl, {
       onSelectRobot: handleSelectRobot,
       onMoveDirection: handleMoveDirection,
+      onUndo: handleUndo,
+      onReset: handleReset,
+      getSelectedRobot: () => gameState.selectedRobot,
     });
   }
 

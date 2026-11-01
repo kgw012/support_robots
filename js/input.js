@@ -78,9 +78,13 @@ export function bindInputEvents(
 
   /**
    * 이벤트 타깃이 모달, 대화상자, 상하단 HUD/푸터 또는 버튼 등 상호작용 UI 내부인지 확인합니다.
+   * 단, 게임 보드판 내의 로봇 버튼(.robot-piece)은 드래그/선택 대상이므로 차단하지 않습니다.
    */
   function isInteractiveOrModalTarget(target) {
     if (!target || typeof target.closest !== 'function') return false;
+    // 게임 보드 내의 로봇 버튼(.robot-piece)은 드래그 및 선택의 대상이므로 차단 대상에서 제외
+    if (target.closest('.robot-piece')) return false;
+
     return Boolean(
       target.closest(
         '.howto-modal, .clear-overlay, .puzzle-loading-overlay, .hud-header, .game-footer, button, a, input, select, textarea'
@@ -177,7 +181,14 @@ export function bindInputEvents(
 
   // 2. 데스크톱 마우스 드래그 지원 (mousedown / mouseup)
   boardEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // 마우스 좌클릭만 허용
     if (isAnyModalActive() || isInteractiveOrModalTarget(e.target)) return;
+
+    // 브라우저 기본 드래그(텍스트 선택, 이미지 고스트) 방지
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+
     startX = e.clientX;
     startY = e.clientY;
 
@@ -203,6 +214,9 @@ export function bindInputEvents(
 
     const direction = resolveSwipeDirection(dx, dy);
     if (direction && typeof onMoveDirection === 'function') {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
       onMoveDirection(direction);
     }
   });
@@ -210,11 +224,37 @@ export function bindInputEvents(
   // 3. 데스크톱 키보드 조작 지원
   const ROBOT_CYCLE = ['red', 'green', 'blue', 'yellow'];
 
+  /**
+   * 키보드 모드(로봇 위에 1, 2, 3, 4 번호 배지 표시) 활성화/비활성화
+   */
+  function setKeyboardMode(active) {
+    if (!boardEl) return;
+    boardEl.classList.toggle('show-robot-numbers', Boolean(active));
+  }
+
+  // 마우스 클릭 또는 화면 터치/스와이프 시 키보드 모드 즉시 해제 (기본값인 숫자 숨김 복귀)
+  window.addEventListener('mousedown', () => setKeyboardMode(false), { passive: true });
+  window.addEventListener('touchstart', () => setKeyboardMode(false), { passive: true });
+
   window.addEventListener('keydown', (e) => {
     // 인풋/텍스트에 포커스되어 타이핑 중일 때는 단축키 무시
     const tag = (e.target && e.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) {
       return;
+    }
+
+    // 모달이 열려 있거나 인게임 보드가 활성화 상태가 아니면 단축키 무시
+    if (isAnyModalActive() || !boardEl || boardEl.offsetParent === null) {
+      return;
+    }
+
+    // 게임 조작 키 입력 감지 시 키보드 모드 활성화 (로봇 번호 표시)
+    const isGameKey =
+      ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Tab', 'KeyZ', 'KeyR', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code) ||
+      ['1', '2', '3', '4', 'Tab', 'z', 'Z', 'ㅋ', 'r', 'R', 'ㄱ', 'w', 'W', 'ㅈ', 'a', 'A', 'ㅁ', 's', 'S', 'ㄴ', 'd', 'D', 'ㅇ'].includes(e.key);
+
+    if (isGameKey) {
+      setKeyboardMode(true);
     }
 
     // 1) 로봇 선택: 숫자키 1, 2, 3, 4
@@ -240,10 +280,16 @@ export function bindInputEvents(
     }
 
     // 2) 로봇 순환 선택: Tab (Shift+Tab은 역순)
-    if (e.code === 'Tab') {
+    if (e.code === 'Tab' || e.key === 'Tab') {
       e.preventDefault();
-      const current = typeof getSelectedRobot === 'function' ? getSelectedRobot() : 'red';
-      const curIdx = ROBOT_CYCLE.indexOf(current);
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+      const current = typeof getSelectedRobot === 'function' ? getSelectedRobot() : null;
+      let curIdx = ROBOT_CYCLE.indexOf(current);
+      if (curIdx === -1) {
+        curIdx = e.shiftKey ? 0 : ROBOT_CYCLE.length - 1;
+      }
       const step = e.shiftKey ? -1 : 1;
       const nextIdx = (curIdx + step + ROBOT_CYCLE.length) % ROBOT_CYCLE.length;
       if (typeof onSelectRobot === 'function') {
@@ -252,16 +298,16 @@ export function bindInputEvents(
       return;
     }
 
-    // 3) 되돌리기(Undo): Z 키 또는 Ctrl+Z / Cmd+Z
-    if (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z') {
+    // 3) 되돌리기(Undo): Z 키 또는 Ctrl+Z / Cmd+Z (한글 'ㅋ' 키 포함)
+    if (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z' || e.key === 'ㅋ') {
       e.preventDefault();
       if (typeof onUndo === 'function') onUndo();
       return;
     }
 
-    // 4) 처음부터 다시하기(Reset): R 키
-    if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R') {
-      // Ctrl+R(브라우저 새로고침)은 방해하지 않음
+    // 4) 처음부터 다시하기(Reset): R 키 (한글 'ㄱ' 키 포함, 브라우저 새로고침 제외)
+    if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R' || e.key === 'ㄱ') {
+      // Ctrl+R / Cmd+R (브라우저 새로고침)은 방해하지 않음
       if (!e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         if (typeof onReset === 'function') onReset();
@@ -269,7 +315,7 @@ export function bindInputEvents(
       }
     }
 
-    // 5) 방향키 및 WASD 이동
+    // 5) 방향키 및 WASD 이동 (한글 자판 ㅈ, ㅁ, ㄴ, ㅇ 호환)
     const keyMap = {
       ArrowUp: DIRECTIONS.UP,
       KeyW: DIRECTIONS.UP,
@@ -281,7 +327,25 @@ export function bindInputEvents(
       KeyA: DIRECTIONS.LEFT,
     };
 
-    const direction = keyMap[e.code];
+    let direction = keyMap[e.code];
+    if (!direction && e.key) {
+      const charKeyMap = {
+        w: DIRECTIONS.UP,
+        W: DIRECTIONS.UP,
+        ㅈ: DIRECTIONS.UP,
+        d: DIRECTIONS.RIGHT,
+        D: DIRECTIONS.RIGHT,
+        ㅇ: DIRECTIONS.RIGHT,
+        s: DIRECTIONS.DOWN,
+        S: DIRECTIONS.DOWN,
+        ㄴ: DIRECTIONS.DOWN,
+        a: DIRECTIONS.LEFT,
+        A: DIRECTIONS.LEFT,
+        ㅁ: DIRECTIONS.LEFT,
+      };
+      direction = charKeyMap[e.key];
+    }
+
     if (direction && typeof onMoveDirection === 'function') {
       e.preventDefault();
       onMoveDirection(direction);

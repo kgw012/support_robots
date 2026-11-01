@@ -1403,6 +1403,13 @@ button.mode-guide-badge:active {
   border-radius: 6px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.board-wrapper:active {
+  cursor: grabbing;
 }
 
 /* 클리어 완료 상태: 보드와 로봇을 흐릿하고 차분하게 처리하여 조작 불가(비활성화) 상태를 직관적으로 전달 */
@@ -1603,12 +1610,18 @@ button.mode-guide-badge:active {
   display: flex;
   justify-content: center;
   align-items: center;
-  cursor: pointer;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
   pointer-events: auto;
   z-index: 6;
   transition: left 0.18s cubic-bezier(0.22, 1, 0.36, 1),
               top 0.18s cubic-bezier(0.22, 1, 0.36, 1),
               transform 0.15s ease;
+}
+
+.robot-piece:active {
+  cursor: grabbing;
 }
 
 .robot-core {
@@ -1618,6 +1631,52 @@ button.mode-guide-badge:active {
   border: 2px solid #ffffff;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55), inset 0 2px 3px rgba(255, 255, 255, 0.35);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* 로봇 키보드 단축키 안내 번호 배지 (기본값: 모바일 우선 숨김, 키보드 조작 감지 시 표출) */
+.robot-key-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: clamp(10px, 2.8vw, 13px);
+  font-weight: 900;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+/* 밝은 노랑 로봇에서는 짙은 남색 폰트로 고대비 가독성 확보 */
+.robot-yellow .robot-key-badge {
+  color: #0f172a;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.95), 0 1px 2px rgba(255, 255, 255, 0.7);
+}
+
+/* 선택된 로봇의 숫자 배지 발광 강조 */
+.robot-piece.is-selected .robot-key-badge {
+  font-weight: 900;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.85));
+}
+
+.robot-piece.is-selected.robot-yellow .robot-key-badge {
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
+}
+
+/* 키보드 모드 활성화 시 4대 로봇 위에 1, 2, 3, 4 번호가 선명하게 나타남 */
+.board-wrapper.show-robot-numbers .robot-key-badge {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .robot-red .robot-core { background-color: var(--color-red); }
