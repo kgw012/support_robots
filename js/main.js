@@ -48,8 +48,6 @@ import {
   enterInfiniteMode,
   enterDailyChallengeMode,
   returnToLobby,
-  openDailyExpiredModal,
-  checkDailyMidnightTransition,
   trackAnalyticsView,
   initNavigationEvents,
 } from './navigation.js';
@@ -246,26 +244,6 @@ async function bootstrap() {
 
   // 페이지 로드 즉시 자동 재생 시도
   handleAudioUnlock();
-
-  // 브라우저 콘솔 테스트 헬퍼 (자정 만료 및 잔류 시뮬레이션 지원)
-  if (typeof window !== 'undefined') {
-    window.srDebug = {
-      gameState,
-      setYesterday: () => {
-        gameState.dateSeed = '20261031';
-        if (gameState.board) gameState.board.dateSeed = '20261031';
-        console.log('⏰ 현재 진행 중인 퍼즐이 "어제(20261031)" 날짜로 설정되었습니다!');
-        console.log('👉 5초 후 주기적 타이머 또는 다른 탭을 클릭하고 돌아오면 만료 팝업이 뜹니다.');
-        console.log('👉 또는 로봇을 조작해서 클리어해 보시면 기록 제출이 차단되고 만료 팝업이 뜹니다.');
-      },
-      openExpiredModal: () => {
-        openDailyExpiredModal();
-      },
-      checkMidnight: () => {
-        checkDailyMidnightTransition();
-      },
-    };
-  }
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);
