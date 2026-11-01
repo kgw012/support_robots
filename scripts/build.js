@@ -190,6 +190,7 @@ const MANGLE_IDENTIFIERS = [
   'registerSolutionWarmupHook',
   'warmupCurrentSolution',
   'syncSolutionViewSize',
+  'getCurrentPuzzleKey',
   'initHudEvents',
   'initGameControls',
   'setGameNavigationHandlers',

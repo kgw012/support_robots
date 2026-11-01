@@ -3,7 +3,7 @@
  * @description 무한 모드 정답보기(경로 사진 뷰어) 및 점수 미지급 확인 모달 모듈
  */
 
-import { gameState, registerSolutionWarmupHook } from './state.js';
+import { gameState, registerSolutionWarmupHook, cloneRobots } from './state.js';
 import { solveBoardWithPath } from './solver.js';
 import { renderSolutionCanvas } from './routeImage.js';
 import { playButtonClick, playWallHit } from './audio.js';
@@ -35,6 +35,20 @@ function cancelWarmupTimer() {
 }
 
 /**
+ * 현재 인게임 퍼즐(보드 타깃 심볼/위치, 4대 로봇의 초기 위치)의 100% 고유한 해시 키를 반환합니다.
+ * 라운드가 변경되었을 때 이전 판의 캐시나 잔상이 노출되는 것을 수학적으로 원천 차단합니다.
+ */
+export function getCurrentPuzzleKey() {
+  if (!gameState.board || !gameState.initialRobots || !gameState.activeTarget) return null;
+  const t = gameState.activeTarget;
+  const r = gameState.initialRobots;
+  const targetStr = `${t.color}_${t.symbol}_${t.row},${t.col}`;
+  const robotsStr = `R${r.red?.row},${r.red?.col}_G${r.green?.row},${r.green?.col}_B${r.blue?.row},${r.blue?.col}_Y${r.yellow?.row},${r.yellow?.col}`;
+  const boardId = gameState.currentBoardId ?? 'b';
+  return `${boardId}:${targetStr}:${robotsStr}`;
+}
+
+/**
  * 정답 사진 뷰어의 크기를 현재 실제 인게임 보드판(boardWrapperEl)의 픽셀 크기와 1:1로 일치시킵니다.
  */
 export function syncSolutionViewSize() {
@@ -58,25 +72,27 @@ export function warmupCurrentSolution() {
   if (gameState.gameMode !== 'infinite') return;
   if (!gameState.board || !gameState.initialRobots || !gameState.activeTarget) return;
 
-  const currentBoardId = gameState.currentBoardId;
-  const currentBoard = gameState.board;
-  const currentRobots = gameState.initialRobots;
-  const currentTarget = gameState.activeTarget;
-  const currentDiff = gameState.selectedDifficultyMode || gameState.difficulty?.id || 'normal';
+  const puzzleKey = getCurrentPuzzleKey();
+  if (!puzzleKey) return;
 
-  // 이미 현재 보드에 대한 웜업이 완료되어 있다면 중복 실행 방지
-  if (gameState.cachedSolution && gameState.cachedSolution.boardId === currentBoardId) {
+  // 이미 현재 퍼즐에 대한 웜업이 완료되어 있다면 중복 실행 방지
+  if (gameState.cachedSolution && gameState.cachedSolution.puzzleKey === puzzleKey) {
     return;
   }
 
   // 이전 예약 취소
   cancelWarmupTimer();
 
+  const currentBoard = gameState.board;
+  const currentRobots = cloneRobots(gameState.initialRobots);
+  const currentTarget = { ...gameState.activeTarget };
+  const currentDiff = gameState.selectedDifficultyMode || gameState.difficulty?.id || 'normal';
+
   const runWarmup = () => {
     warmupTimer = null;
-    // 실행 시점에 이미 보드가 바뀌었거나 클리어된 경우 중단
-    if (gameState.currentBoardId !== currentBoardId) return;
-    if (gameState.cachedSolution && gameState.cachedSolution.boardId === currentBoardId) return;
+    // 실행 시점에 이미 다음 문제로 넘어갔다면 즉시 중단
+    if (getCurrentPuzzleKey() !== puzzleKey) return;
+    if (gameState.cachedSolution && gameState.cachedSolution.puzzleKey === puzzleKey) return;
 
     try {
       const t0 = Date.now();
@@ -88,14 +104,14 @@ export function warmupCurrentSolution() {
       );
 
       if (result && result.solved && result.path && result.path.length > 0) {
-        // 비동기 연산 도중 보드가 바뀌었는지 재검증
-        if (gameState.currentBoardId !== currentBoardId) return;
+        // 비동기 연산 도중 문제가 바뀌었는지 재검증
+        if (getCurrentPuzzleKey() !== puzzleKey) return;
 
         const solutionData = {
           dateSeed: 'INFINITE',
           difficulty: currentDiff,
           moveCount: result.minMoves,
-          collisionCount: 0,
+          collisionCount: result.maxCollisions || 0,
           initialRobots: currentRobots,
           finalRobots: result.finalRobots,
           activeTarget: currentTarget,
@@ -107,17 +123,22 @@ export function warmupCurrentSolution() {
         const canvas = renderSolutionCanvas(solutionData, { pureBoard: true });
         const dataUrl = canvas.toDataURL('image/png');
 
+        // 저장 직전 다시 한번 현재 퍼즐과 일치하는지 최종 검증
+        if (getCurrentPuzzleKey() !== puzzleKey) return;
+
         gameState.cachedSolution = {
-          boardId: currentBoardId,
+          puzzleKey,
+          boardId: gameState.currentBoardId,
           solved: true,
           minMoves: result.minMoves,
+          maxCollisions: result.maxCollisions || 0,
           path: result.path,
           finalRobots: result.finalRobots,
           dataUrl,
         };
 
-        logger.info('Warmup solution cached for infinite mode (pureBoard)', {
-          boardId: currentBoardId,
+        logger.info('Warmup solution cached for infinite mode', {
+          puzzleKey,
           minMoves: result.minMoves,
           durationMs: Date.now() - t0,
         });
@@ -128,16 +149,16 @@ export function warmupCurrentSolution() {
   };
 
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-    warmupTimer = window.requestIdleCallback(runWarmup, { timeout: 2000 });
+    warmupTimer = window.requestIdleCallback(runWarmup, { timeout: 1500 });
   } else {
-    warmupTimer = setTimeout(runWarmup, 60);
+    warmupTimer = setTimeout(runWarmup, 40);
   }
 }
 
 /**
  * 정답 확인 경고 모달 열기
  * - 최적 경로 달성 전 (미골인 or 비최적 골인으로 점수 미획득 상태):
- *   정답 확인 시 이번 문제 점수 미지급 경고 팝업 표시
+ *   정답 확인 시 이번 문제 점수 미지급 경고 확인 팝업 표시
  * - 최적 경로 완벽 달성 후 (이미 점수 획득 완료 상태):
  *   더 이상 패널티가 없으므로 경고 팝업 없이 0ms 즉시 정답 사진 표출
  */
@@ -179,13 +200,18 @@ export function closeSolutionViewModal() {
   if (solutionViewModalEl) {
     solutionViewModalEl.hidden = true;
   }
+  // 모달을 닫을 때 이전 이미지 src를 즉시 비워서 다음 번 열릴 때 잔상이 남지 않도록 보장
+  if (solutionViewImgEl) {
+    solutionViewImgEl.src = '';
+    solutionViewImgEl.style.opacity = '0';
+  }
 }
 
 /**
  * 유저가 '예 (정답 보기)'를 눌렀을 때 실행되는 핸들러:
  * 1. 무한 모드 점수 획득 차단 (gameState.solutionViewed = true)
- * 2. 캐시된 사전 연산 결과가 있으면 0ms 즉시 표출!
- * 3. 캐시가 없으면 즉시 솔버 연산 후 표출 (Fallback)
+ * 2. 캐시된 사전 연산 결과가 현재 퍼즐과 정확히 일치하면 0ms 즉시 표출!
+ * 3. 캐시가 없으면 즉시 현재 퍼즐의 솔버 연산 후 표출 (Fallback)
  */
 export async function handleConfirmViewSolution() {
   if (isSolvingInProgress) return;
@@ -206,11 +232,15 @@ export async function handleConfirmViewSolution() {
   // 실제 보드판 크기와 1:1 동기화
   syncSolutionViewSize();
 
-  // 2. 백그라운드에서 사전 연산된 캐시가 있는 경우 -> 솔버 재실행 없이 0ms 즉시 표시!
+  const puzzleKey = getCurrentPuzzleKey();
   const cached = gameState.cachedSolution;
-  const currentBoardId = gameState.currentBoardId;
-  const isCacheValid = cached && cached.boardId === currentBoardId && cached.dataUrl;
+  const isCacheValid = cached && cached.puzzleKey === puzzleKey && cached.dataUrl;
 
+  // 이전 잔상 이미지 즉시 초기화
+  solutionViewImgEl.src = '';
+  solutionViewImgEl.style.opacity = '0';
+
+  // 2. 백그라운드에서 사전 연산된 캐시가 현재 퍼즐과 100% 일치하는 경우 -> 솔버 재실행 없이 0ms 즉시 표시!
   if (isCacheValid) {
     solutionViewModalEl.hidden = false;
     if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
@@ -224,10 +254,9 @@ export async function handleConfirmViewSolution() {
     return;
   }
 
-  // 3. 캐시가 아직 준비되지 않은 극단적인 예외 상황 -> 즉석 솔버 Fallback 실행
+  // 3. 캐시가 아직 준비되지 않은 경우 -> 즉석 솔버 Fallback 실행
   solutionViewModalEl.hidden = false;
   if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = false;
-  solutionViewImgEl.style.opacity = '0.2';
 
   isSolvingInProgress = true;
 
@@ -235,31 +264,41 @@ export async function handleConfirmViewSolution() {
   await new Promise((resolve) => setTimeout(resolve, 30));
 
   try {
+    const currentBoard = gameState.board;
+    const currentRobots = cloneRobots(gameState.initialRobots);
+    const currentTarget = { ...gameState.activeTarget };
+    const currentDiff = gameState.selectedDifficultyMode || gameState.difficulty?.id || 'normal';
+
     const t0 = Date.now();
     const result = solveBoardWithPath(
-      gameState.board.grid,
-      gameState.initialRobots,
-      gameState.activeTarget,
+      currentBoard.grid,
+      currentRobots,
+      currentTarget,
       { maxStates: 500000 }
     );
     const duration = Date.now() - t0;
 
+    // 비동기 연산 중 퍼즐이 바뀌었는지 재검증
+    if (getCurrentPuzzleKey() !== puzzleKey) {
+      if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
+      return;
+    }
+
     if (!result || !result.solved || !result.path || result.path.length === 0) {
       if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
-      solutionViewImgEl.style.opacity = '1';
       logger.warn('Failed to find solution path', { duration });
       return;
     }
 
     const solutionData = {
       dateSeed: 'INFINITE',
-      difficulty: gameState.selectedDifficultyMode || gameState.difficulty?.id || 'normal',
+      difficulty: currentDiff,
       moveCount: result.minMoves,
-      collisionCount: 0,
-      initialRobots: gameState.initialRobots,
+      collisionCount: result.maxCollisions || 0,
+      initialRobots: currentRobots,
       finalRobots: result.finalRobots,
-      activeTarget: gameState.activeTarget,
-      board: gameState.board,
+      activeTarget: currentTarget,
+      board: currentBoard,
       path: result.path,
     };
 
@@ -267,31 +306,32 @@ export async function handleConfirmViewSolution() {
     const canvas = renderSolutionCanvas(solutionData, { pureBoard: true });
     const dataUrl = canvas.toDataURL('image/png');
 
-    solutionViewImgEl.src = dataUrl;
-    solutionViewImgEl.onload = () => {
-      if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
+    // 최종 검증 후 이미지 표시
+    if (getCurrentPuzzleKey() === puzzleKey) {
+      solutionViewImgEl.src = dataUrl;
       solutionViewImgEl.style.opacity = '1';
-    };
+      if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
 
-    // 캐시에 보관하여 이후 다시 열 때 0ms 유지
-    gameState.cachedSolution = {
-      boardId: currentBoardId,
-      solved: true,
-      minMoves: result.minMoves,
-      path: result.path,
-      finalRobots: result.finalRobots,
-      dataUrl,
-    };
+      gameState.cachedSolution = {
+        puzzleKey,
+        boardId: gameState.currentBoardId,
+        solved: true,
+        minMoves: result.minMoves,
+        maxCollisions: result.maxCollisions || 0,
+        path: result.path,
+        finalRobots: result.finalRobots,
+        dataUrl,
+      };
 
-    logger.track('infinite_solution_viewed_computed', {
-      difficulty: gameState.selectedDifficultyMode,
-      minMoves: result.minMoves,
-      duration,
-    });
+      logger.track('infinite_solution_viewed_computed', {
+        difficulty: gameState.selectedDifficultyMode,
+        minMoves: result.minMoves,
+        duration,
+      });
+    }
   } catch (err) {
     logger.error('Error generating solution image', err);
     if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
-    solutionViewImgEl.style.opacity = '1';
   } finally {
     isSolvingInProgress = false;
   }
@@ -360,4 +400,3 @@ export function initSolutionViewer() {
     }
   });
 }
-

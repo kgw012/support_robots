@@ -753,18 +753,24 @@ export function solveBoardWithPath(grid, robots, target, options = {}) {
 
   const initKey = makeKey(initPositions[0], initPositions[1], initPositions[2], initPositions[3], 0);
 
-  // visited: Map<key, { p: parentKey, r: robotIdx, d: dir } | null>
+  // visited: Map<key, { p: parentKey, r: robotIdx, d: dir, c: collisions, depth: number }>
   const visited = new Map();
-  visited.set(initKey, null);
+  visited.set(initKey, { p: null, r: -1, d: -1, c: 0, depth: 0 });
 
   let currentLevel = [initKey];
   let explored = 1;
 
   for (let depth = 1; depth <= maxDepth; depth++) {
     const nextLevel = [];
+    let foundAtThisDepth = false;
+    let bestGoalCollision = -1;
+    let bestGoalEdge = null;
+    let bestGoalPositions = null;
 
     for (let l = 0; l < currentLevel.length; l++) {
       const stateKey = currentLevel[l];
+      const parentNode = visited.get(stateKey);
+      const baseCollisions = parentNode ? parentNode.c : 0;
       const { positions, axes } = unpackKey(stateKey);
 
       for (let rIdx = 0; rIdx < 4; rIdx++) {
@@ -783,12 +789,29 @@ export function solveBoardWithPath(grid, robots, target, options = {}) {
           const nextPos = res >> 1;
           if (nextPos === currPos) continue;
 
+          const collisionOccurred = res & 1;
+          const nextCollisions = baseCollisions + collisionOccurred;
+
           const moveAxisBit = (dir & 1) === 0 ? 2 : 1;
           const nextRobotAxis = robotAxis | moveAxisBit;
           const nextAxes = (axes & ~(3 << robotAxisShift)) | (nextRobotAxis << robotAxisShift);
 
           const nextPositions = [positions[0], positions[1], positions[2], positions[3]];
           nextPositions[rIdx] = nextPos;
+
+          // 목표 도달 및 90도 꺾임(Ricochet) 필수 검증
+          if (isThisGoalRobot && nextPos === goalIdx && nextRobotAxis === 3) {
+            foundAtThisDepth = true;
+            if (nextCollisions > bestGoalCollision) {
+              bestGoalCollision = nextCollisions;
+              bestGoalEdge = { p: stateKey, r: rIdx, d: dir, c: nextCollisions };
+              bestGoalPositions = nextPositions;
+            }
+            continue;
+          }
+
+          // 이미 현재 최단 깊이에서 골인을 달성했다면 다음 깊이로의 상태 확장은 생략 (불필요한 연산 방어)
+          if (foundAtThisDepth) continue;
 
           const nextKey = makeKey(
             nextPositions[0],
@@ -798,53 +821,70 @@ export function solveBoardWithPath(grid, robots, target, options = {}) {
             nextAxes
           );
 
-          if (isThisGoalRobot && nextPos === goalIdx && nextRobotAxis === 3) {
-            visited.set(nextKey, { p: stateKey, r: rIdx, d: dir });
-
-            // 역추적
-            const path = [];
-            let curr = nextKey;
-            while (curr !== null) {
-              const edge = visited.get(curr);
-              if (!edge) break;
-              const parentData = unpackKey(edge.p);
-              const fromPos = parentData.positions[edge.r];
-              const currData = unpackKey(curr);
-              const toPos = currData.positions[edge.r];
-
-              path.push({
-                robotColor: SOLVER_COLOR_KEYS[edge.r],
-                from: { row: fromPos >> 4, col: fromPos & 15 },
-                to: { row: toPos >> 4, col: toPos & 15 },
-                direction: SOLVER_DIR_NAMES[edge.d],
-              });
-              curr = edge.p;
-            }
-            path.reverse();
-
-            return {
-              solved: true,
-              minMoves: depth,
-              path: path.map((item, idx) => ({ step: idx + 1, ...item })),
-              finalRobots: {
-                red: { row: nextPositions[0] >> 4, col: nextPositions[0] & 15 },
-                green: { row: nextPositions[1] >> 4, col: nextPositions[1] & 15 },
-                blue: { row: nextPositions[2] >> 4, col: nextPositions[2] & 15 },
-                yellow: { row: nextPositions[3] >> 4, col: nextPositions[3] & 15 },
-              },
-            };
-          }
-
-          if (!visited.has(nextKey)) {
-            visited.set(nextKey, { p: stateKey, r: rIdx, d: dir });
+          const existing = visited.get(nextKey);
+          if (existing === undefined) {
+            visited.set(nextKey, { p: stateKey, r: rIdx, d: dir, c: nextCollisions, depth });
             nextLevel.push(nextKey);
             explored += 1;
             if (explored >= maxStates) break;
+          } else if (existing.depth === depth && nextCollisions > existing.c) {
+            // 동일 깊이에서 더 많은 완충 충돌을 거치는 상위 호환 경로로 부모 엣지 갱신
+            existing.p = stateKey;
+            existing.r = rIdx;
+            existing.d = dir;
+            existing.c = nextCollisions;
           }
         }
         if (explored >= maxStates) break;
       }
       if (explored >= maxStates) break;
+    }
+
+    // 최단 깊이에서 발견된 골인 경로들 중 '최대 완충 충돌(maxCollisions)'을 달성한 최적 경로 역추적
+    if (foundAtThisDepth && bestGoalEdge) {
+      const path = [];
+      const lastParent = unpackKey(bestGoalEdge.p);
+      const lastFromPos = lastParent.positions[bestGoalEdge.r];
+      const lastToPos = bestGoalPositions[bestGoalEdge.r];
+
+      path.push({
+        robotColor: SOLVER_COLOR_KEYS[bestGoalEdge.r],
+        from: { row: lastFromPos >> 4, col: lastFromPos & 15 },
+        to: { row: lastToPos >> 4, col: lastToPos & 15 },
+        direction: SOLVER_DIR_NAMES[bestGoalEdge.d],
+      });
+
+      let currKey = bestGoalEdge.p;
+      while (currKey !== null) {
+        const edge = visited.get(currKey);
+        if (!edge || edge.p === null) break;
+        const parentData = unpackKey(edge.p);
+        const currData = unpackKey(currKey);
+        const fromPos = parentData.positions[edge.r];
+        const toPos = currData.positions[edge.r];
+
+        path.push({
+          robotColor: SOLVER_COLOR_KEYS[edge.r],
+          from: { row: fromPos >> 4, col: fromPos & 15 },
+          to: { row: toPos >> 4, col: toPos & 15 },
+          direction: SOLVER_DIR_NAMES[edge.d],
+        });
+        currKey = edge.p;
+      }
+      path.reverse();
+
+      return {
+        solved: true,
+        minMoves: depth,
+        maxCollisions: bestGoalCollision,
+        path: path.map((item, idx) => ({ step: idx + 1, ...item })),
+        finalRobots: {
+          red: { row: bestGoalPositions[0] >> 4, col: bestGoalPositions[0] & 15 },
+          green: { row: bestGoalPositions[1] >> 4, col: bestGoalPositions[1] & 15 },
+          blue: { row: bestGoalPositions[2] >> 4, col: bestGoalPositions[2] & 15 },
+          yellow: { row: bestGoalPositions[3] >> 4, col: bestGoalPositions[3] & 15 },
+        },
+      };
     }
 
     if (nextLevel.length === 0 || explored >= maxStates) {
@@ -853,5 +893,5 @@ export function solveBoardWithPath(grid, robots, target, options = {}) {
     currentLevel = nextLevel;
   }
 
-  return { solved: false, minMoves: null, path: [], finalRobots: robots };
+  return { solved: false, minMoves: null, maxCollisions: 0, path: [], finalRobots: robots };
 }
