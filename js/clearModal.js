@@ -12,6 +12,7 @@ import {
   INFINITE_DIFF_POINTS,
 } from './api.js';
 import { playButtonClick } from './audio.js';
+import { logger } from './logger.js';
 import {
   clearOverlayEl,
   btnClearRetryEl,
@@ -97,8 +98,15 @@ export async function handleShareDailyRecord() {
   }
 
   if (copied) {
+    logger.track('record_shared', {
+      isLoggedIn: authState.isLoggedIn,
+      mode: 'daily',
+      difficulty: diffKey,
+      method: typeof navigator !== 'undefined' && navigator.clipboard ? 'clipboard' : 'fallback',
+    });
     showShareFeedback('✅ 클립보드 복사 완료!');
   } else {
+    logger.warn('Share copy failed', { diffKey });
     showShareFeedback('⚠️ 복사 실패 (직접 복사해 주세요)');
   }
 }
@@ -143,6 +151,13 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
         collisionCount: gameState.collisionCount,
       });
       if (res && res.ok) {
+        logger.info('daily_challenge_submitted', {
+          dateSeed: gameState.dateSeed || getTodayKSTDateSeed().seed,
+          difficulty: gameState.dailyDifficultyMode,
+          moveCount: gameState.moveCount,
+          collisionCount: gameState.collisionCount,
+          status: res.status,
+        }, true);
         if (res.status === 'INSERTED') {
           clearModeRewardEl.textContent = '🏆 오늘의 일일 챌린지 첫 클리어 기록이 등록되었습니다!';
         } else if (res.status === 'UPDATED') {
@@ -151,9 +166,11 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
           clearModeRewardEl.textContent = '✅ 이미 달성한 오늘의 개인 최고 기록이 유지됩니다.';
         }
       } else {
+        logger.warn('Challenge record submission rejected', { res, dateSeed: gameState.dateSeed });
         clearModeRewardEl.textContent = '⚠️ 기록 제출에 실패했습니다. 로그인 상태를 확인해 주세요.';
       }
-    } catch (_) {
+    } catch (err) {
+      logger.error('Failed to submit challenge record', err, { dateSeed: gameState.dateSeed });
       clearModeRewardEl.textContent = '⚠️ 네트워크 오류로 기록을 제출하지 못했습니다.';
     }
     return;
@@ -188,6 +205,11 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
   try {
     const res = await addInfiniteModeScore(diffId);
     if (res && res.ok) {
+      logger.info('infinite_score_claimed', {
+        difficulty: diffId,
+        pointsAdded: res.pointsAdded,
+        infiniteScore: res.infiniteScore,
+      }, true);
       clearModeRewardEl.textContent = `✨ 완벽 클리어 +${res.pointsAdded}P 획득! (누적 ${res.infiniteScore}P)`;
       if (typeof onScoreSync === 'function') {
         onScoreSync();

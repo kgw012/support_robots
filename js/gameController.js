@@ -50,6 +50,8 @@ import {
   hideHudPopover,
 } from './hudController.js';
 import { bindInputEvents } from './input.js';
+import { authState } from './api.js';
+import { logger } from './logger.js';
 import {
   boardWrapperEl,
   boardGridEl,
@@ -222,6 +224,16 @@ export function handleMoveDirection(direction) {
       : updateBestRecord(gameState.moveCount, gameState.collisionCount);
 
     renderRuleFeedback(evaluation, solverFeedback, bestRecordInfo);
+    const clearLogData = {
+      isLoggedIn: authState.isLoggedIn,
+      mode: gameState.gameMode,
+      difficulty: gameState.gameMode === 'daily' ? gameState.dailyDifficultyMode : gameState.selectedDifficultyMode,
+      moveCount: gameState.moveCount,
+      collisionCount: gameState.collisionCount,
+      isOptimal: solverFeedback?.isOptimal ?? false,
+    };
+    logger.track('puzzle_cleared', clearLogData);
+    logger.info('puzzle_cleared', clearLogData, true);
     openClearOverlay(solverFeedback, () => {
       navigationHandlers.syncAuthUI && navigationHandlers.syncAuthUI();
     });
@@ -289,6 +301,10 @@ export function handleReset() {
   }
 
   if (resetCurrentRound()) {
+    logger.track('puzzle_reset', {
+      mode: gameState.gameMode,
+      difficulty: gameState.gameMode === 'daily' ? gameState.dailyDifficultyMode : gameState.selectedDifficultyMode,
+    });
     playUndo();
     if (boardWrapperEl) boardWrapperEl.classList.remove('is-cleared');
     if (robotsLayerEl) robotsLayerEl.classList.remove('is-cleared');

@@ -35,6 +35,7 @@ import {
   syncAuthUI,
   showLobbyToast,
 } from './lobbyController.js';
+import { logger } from './logger.js';
 import {
   lobbyScreenEl,
   gameScreenEl,
@@ -215,6 +216,7 @@ export function enterTutorialMode() {
   });
 
   trackAnalyticsView('tutorial', true);
+  logger.track('mode_enter', { mode: 'tutorial' });
 }
 
 export async function enterInfiniteMode() {
@@ -255,6 +257,10 @@ export async function enterInfiniteMode() {
     syncInGameHeaderByMode();
     renderAll();
     trackAnalyticsView('infinite', true);
+    logger.track('mode_enter', {
+      mode: 'infinite',
+      difficulty: gameState.selectedDifficultyMode,
+    });
   } finally {
     hidePuzzleLoading();
   }
@@ -304,6 +310,10 @@ export async function enterDailyChallengeMode() {
     syncInGameHeaderByMode();
     renderAll();
     trackAnalyticsView('daily', false);
+    logger.track('mode_enter', {
+      mode: 'daily',
+      difficulty: gameState.dailyDifficultyMode,
+    });
   } finally {
     hidePuzzleLoading();
   }
