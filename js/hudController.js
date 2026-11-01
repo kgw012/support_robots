@@ -28,6 +28,45 @@ import {
   gameScreenEl,
 } from './elements.js';
 
+export const HUD_INFO_CONTENT = Object.freeze({
+  target: `
+    <strong>목표 탈출구 안내</strong>
+    탈출구와 같은 색상의 로봇을 해당 위치에 정지시키세요. (다색 탈출구는 모든 로봇 가능)<br/>
+    ※ 출발지에서 직진 한 번으로 도달하는 것은 무효이며, 최소 1회 이상 벽이나 다른 로봇에 부딪혀 90도 방향 전환 후 들어가야 합니다.
+  `,
+  difficulty: `
+    <strong>난이도 분류 기준 (최단 이동 횟수)</strong>
+    <div class="popover-diff-grid">
+      <div class="popover-diff-item">
+        <span class="difficulty-badge diff-easy">EASY</span>
+        <span>1 ~ 4회</span>
+      </div>
+      <div class="popover-diff-item">
+        <span class="difficulty-badge diff-normal">NORMAL</span>
+        <span>5 ~ 7회</span>
+      </div>
+      <div class="popover-diff-item">
+        <span class="difficulty-badge diff-hard">HARD</span>
+        <span>8 ~ 9회</span>
+      </div>
+      <div class="popover-diff-item">
+        <span class="difficulty-badge diff-hell">HELL</span>
+        <span>10회 이상</span>
+      </div>
+    </div>
+  `,
+  move: `
+    <strong>이동 횟수 (1순위 · 낮을수록 우수)</strong>
+    로봇이 미끄러져 이동한 총 횟수입니다.<br/>
+    더 적은 이동 횟수로 탈출할수록 높은 순위를 기록합니다.
+  `,
+  collision: `
+    <strong>완충 횟수 (2순위 · 높을수록 우수)</strong>
+    벽 대신 <b>다른 로봇에 부딪혀 멈춘 횟수</b>입니다 (벽 충돌 제외).<br/>
+    이동 횟수가 같다면, 완충 횟수가 많을수록 더 높은 순위를 기록합니다.
+  `,
+});
+
 let activePopoverType = null;
 let isTutorialUndoLocked = false;
 

@@ -20,6 +20,7 @@ import {
   btnLeaderboardHistoryEl,
   btnLeaderboardCloseEl,
   btnLeaderboardCloseTopEl,
+  btnOpenLeaderboardEl,
 } from './elements.js';
 
 let activeLeaderboardMode = 'daily';
@@ -294,6 +295,12 @@ export async function openLeaderboardModal(
  * 리더보드 모달 이벤트 바인딩
  */
 export function initLeaderboardModal() {
+  if (btnOpenLeaderboardEl) {
+    btnOpenLeaderboardEl.addEventListener('click', () => {
+      const targetMode = gameState.gameMode === 'infinite' ? 'infinite' : 'daily';
+      openLeaderboardModal(gameState.dailyDifficultyMode || 'normal', targetMode, true);
+    });
+  }
   if (btnLeaderboardHistoryEl) {
     btnLeaderboardHistoryEl.addEventListener('click', () => {
       isDailyHistoryView = !isDailyHistoryView;
