@@ -203,13 +203,21 @@ export async function restoreAuthSession() {
     authState.passwordHash = parsed.passwordHash;
 
     // DB에서 최신 점수 비동기 조회
-    const rows = await supabaseRequest(
-      `/rest/v1/users?id=eq.${encodeURIComponent(parsed.id)}&select=id,nickname,total_score,infinite_score`
-    );
-    if (Array.isArray(rows) && rows.length > 0) {
-      authState.user = rows[0];
-      saveSessionToStorage(rows[0], parsed.passwordHash);
+    try {
+      const rows = await supabaseRequest(
+        `/rest/v1/users?id=eq.${encodeURIComponent(parsed.id)}&select=id,nickname,total_score,infinite_score`
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        authState.user = rows[0];
+        saveSessionToStorage(rows[0], parsed.passwordHash);
+      }
+    } catch (_) {
+      // 일시적 네트워크 에러 시 캐시된 세션 유지
     }
+
+    logger.track('user_auto_login', { userId: authState.user.id });
+    logger.info('user_auto_login', { userId: authState.user.id }, true);
+
     return authState.user;
   } catch (_) {
     return authState.user;
