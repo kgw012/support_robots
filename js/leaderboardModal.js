@@ -62,6 +62,7 @@ export function formatHistoryDate(dateSeed) {
 
 export async function renderCurrentLeaderboard() {
   if (!leaderboardModalEl || !leaderboardBodyEl) return;
+  leaderboardBodyEl.scrollTop = 0;
 
   // 1) 모드 탭 활성화 상태 동기화
   if (leaderboardModeTabsEl) {
