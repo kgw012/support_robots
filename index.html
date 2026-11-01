@@ -719,6 +719,30 @@
       </div>
     </div>
 
+    <!-- 일일 챌린지 자정 만료 안내 모달 -->
+    <div
+      id="daily-expired-modal"
+      class="howto-modal"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="daily-expired-title"
+    >
+      <div class="howto-card daily-expired-card">
+        <div class="daily-expired-icon" aria-hidden="true">⏰</div>
+        <h2 id="daily-expired-title" class="daily-expired-title">챌린지 클리어 시간 경과</h2>
+        <p class="daily-expired-desc">
+          일일 챌린지 클리어 가능 시간(자정 24:00)이 지났습니다.<br />
+          <strong>오늘의 새로운 일일 챌린지</strong>를 만나보세요!
+        </p>
+        <div class="daily-expired-actions">
+          <button type="button" id="btn-daily-expired-confirm" class="clear-btn primary">
+            ✨ 오늘의 새로운 퍼즐 시작하기
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- 고난도/HELL 퍼즐 연산 및 맵 생성 로딩 오버레이 -->
     <div
       id="puzzle-loading-overlay"

@@ -9,6 +9,8 @@ import {
   isDailyChallengeReady,
   isInfinitePuzzleReady,
   getTodayKSTDateSeed,
+  getMsUntilNextKSTMidnight,
+  warmupAllDailyChallenges,
   DIFF_META,
 } from './state.js';
 import { createBoardData } from './boardPresets.js';
@@ -21,7 +23,7 @@ import {
   resetTutorialProgress,
 } from './tutorial.js';
 import { syncBoardPixelSize } from './renderer.js';
-import { unlockAudio, isBGMMuted, startBGM } from './audio.js';
+import { unlockAudio, isBGMMuted, startBGM, playWallHit, playButtonClick } from './audio.js';
 import { authState } from './api.js';
 import {
   updateTutorialStepCard,
@@ -55,6 +57,8 @@ import {
   leaveConfirmModalEl,
   btnLeaveStayEl,
   btnLeaveConfirmEl,
+  dailyExpiredModalEl,
+  btnDailyExpiredConfirmEl,
   boardWrapperEl,
   robotsLayerEl,
   btnReopenClearEl,
@@ -369,6 +373,82 @@ export function requestLeaveToLobby(source = 'backButton') {
 }
 
 /**
+ * 일일 챌린지 자정 만료 모달을 화면에 표시합니다.
+ * (어제 시작하여 자정 이후 잔류 중이거나, 만료된 퍼즐 클리어 시도 시 호출)
+ */
+export function openDailyExpiredModal() {
+  if (!dailyExpiredModalEl) return;
+  if (clearOverlayEl) clearOverlayEl.hidden = true;
+  if (leaveConfirmModalEl) leaveConfirmModalEl.hidden = true;
+  hideHudPopover();
+  playWallHit();
+  dailyExpiredModalEl.hidden = false;
+}
+
+/**
+ * 일일 챌린지 자정 만료 모달을 닫습니다.
+ */
+export function closeDailyExpiredModal() {
+  if (dailyExpiredModalEl) {
+    dailyExpiredModalEl.hidden = true;
+  }
+}
+
+let lastKnownKSTDateSeed = getTodayKSTDateSeed().seed;
+let midnightTimer = null;
+
+/**
+ * 다음 한국 표준시(KST) 자정 시점에 맞춰 정밀 타이머를 예약합니다.
+ */
+function scheduleNextMidnightCheck() {
+  if (midnightTimer) {
+    clearTimeout(midnightTimer);
+    midnightTimer = null;
+  }
+  const msUntilMidnight = getMsUntilNextKSTMidnight();
+  // 자정 경과 직후(700ms 여유) 안정적으로 실행되도록 예약
+  midnightTimer = setTimeout(() => {
+    checkDailyMidnightTransition();
+  }, Math.max(1000, msUntilMidnight + 700));
+}
+
+/**
+ * 자정 날짜 전환 및 일일 챌린지 만료 상태를 감지합니다.
+ */
+export function checkDailyMidnightTransition() {
+  const todayInfo = getTodayKSTDateSeed();
+  const currentSeed = todayInfo.seed;
+
+  // 1. 일일 챌린지 플레이 중 잔류 감지:
+  // 현재 게임 모드가 일일 챌린지이고, 보드/게임에 귀속된 날짜 시드가 오늘 KST 날짜와 다르면 만료 모달 즉시 표시
+  if (gameState.gameMode === 'daily') {
+    const puzzleDateSeed = gameState.board?.dateSeed || gameState.dateSeed;
+    if (puzzleDateSeed && String(puzzleDateSeed) !== currentSeed) {
+      openDailyExpiredModal();
+      return;
+    }
+  }
+
+  // 2. 날짜 변경(자정 통과) 감지
+  if (currentSeed !== lastKnownKSTDateSeed) {
+    logger.info('Midnight date transition detected', {
+      prev: lastKnownKSTDateSeed,
+      current: currentSeed,
+    });
+    lastKnownKSTDateSeed = currentSeed;
+
+    // 로비 날짜 배지 UI 동기화
+    syncLobbyDifficultyUI();
+
+    // 오늘의 새 일일 챌린지 4개 난이도 백그라운드 사전 생성 워밍업 재호출
+    warmupAllDailyChallenges();
+
+    // 다음 자정 타이머 재설정
+    scheduleNextMidnightCheck();
+  }
+}
+
+/**
  * 화면 전환 및 라우팅 이벤트 바인딩
  */
 export function initNavigationEvents() {
@@ -412,6 +492,36 @@ export function initNavigationEvents() {
       }
     });
   }
+
+  // 일일 챌린지 만료 모달 [오늘의 새로운 퍼즐 시작하기] 버튼 바인딩
+  if (btnDailyExpiredConfirmEl) {
+    btnDailyExpiredConfirmEl.addEventListener('click', async () => {
+      closeDailyExpiredModal();
+      playButtonClick();
+      // 오늘 날짜의 최신 일일 챌린지 퍼즐로 즉시 시작
+      await enterDailyChallengeMode();
+      showLobbyToast('✨ 오늘의 새로운 일일 챌린지가 시작되었습니다!');
+    });
+  }
+
+  // 1. 자정 정밀 타이머 스케줄러 가동
+  scheduleNextMidnightCheck();
+
+  // 2. 스마트폰 화면 켜짐(절전 모드 해제) / 백그라운드 탭 복귀 시 즉시 날짜 변경 확인
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      checkDailyMidnightTransition();
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    checkDailyMidnightTransition();
+  });
+
+  // 3. 주기적 안전 폴백 검사 (5초마다 날짜 일치 여부 확인)
+  setInterval(() => {
+    checkDailyMidnightTransition();
+  }, 5000);
 
   // 플레이 중 4분마다 세션 활성 유지
   setInterval(() => {
