@@ -67,6 +67,37 @@ export function getTodayKSTDateSeed() {
 }
 
 /**
+ * 다음 한국 표준시(KST, UTC+9) 자정(00:00:00)까지 남은 밀리초(ms)를 계산합니다.
+ * @returns {number} 남은 밀리초
+ */
+export function getMsUntilNextKSTMidnight() {
+  const now = new Date();
+  const kstMs = now.getTime() + 9 * 60 * 60 * 1000;
+  const kstDate = new Date(kstMs);
+
+  // 다음날 00:00:00 KST
+  const nextKstMidnightUtc = Date.UTC(
+    kstDate.getUTCFullYear(),
+    kstDate.getUTCMonth(),
+    kstDate.getUTCDate() + 1,
+    0, 0, 0, 0
+  );
+
+  return Math.max(0, nextKstMidnightUtc - kstMs);
+}
+
+/**
+ * 주어진 날짜 시드가 오늘 날짜(KST)와 다른지(만료되었는지) 판정합니다.
+ * @param {string|number} [dateSeed]
+ * @returns {boolean}
+ */
+export function isDailyDateExpired(dateSeed) {
+  if (!dateSeed) return false;
+  const today = getTodayKSTDateSeed();
+  return String(dateSeed) !== today.seed;
+}
+
+/**
  * 문자열 시드를 기반으로 모든 브라우저/기기에서 100% 동일한 난수열을 생성하는 결정론적 PRNG (xmur3 + mulberry32)
  * @param {string} seedStr
  * @returns {function(): number}
@@ -145,7 +176,13 @@ export async function generateDailyChallengePuzzle(dateSeed, difficulty) {
   // 완충 점수 내림차순 정렬 (동점일 경우 시드 순서 유지)
   targetPool.sort((a, b) => b.score - a.score);
 
-  const bestPuzzle = targetPool[0];
+  const bestPuzzle = {
+    ...targetPool[0],
+    dateSeed: String(dateSeed),
+  };
+  if (bestPuzzle.board) {
+    bestPuzzle.board.dateSeed = String(dateSeed);
+  }
   dailyPuzzleCache[cacheKey] = bestPuzzle;
   return bestPuzzle;
 }
@@ -460,6 +497,9 @@ export async function initGameState(options = {}) {
 
     const dailyPicked = await generateDailyChallengePuzzle(effectiveSeed, effectiveDiff);
     board = dailyPicked.board;
+    if (board) {
+      board.dateSeed = effectiveSeed;
+    }
     startRobots = cloneRobots(dailyPicked.initialRobots);
     chosenTarget = { ...dailyPicked.activeTarget };
     minMoves = dailyPicked.minMoves;

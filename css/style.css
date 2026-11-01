@@ -2031,6 +2031,41 @@ button.mode-guide-badge:active {
   margin-top: 4px;
 }
 
+.daily-expired-card {
+  max-width: 330px;
+  text-align: center;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(245, 158, 11, 0.2);
+}
+
+.daily-expired-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.daily-expired-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+.daily-expired-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.daily-expired-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .clear-btn.is-danger {
   background: #dc2626;
   color: #ffffff;

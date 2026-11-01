@@ -12,6 +12,7 @@ import {
   INFINITE_DIFF_POINTS,
 } from './api.js';
 import { playButtonClick } from './audio.js';
+import { openDailyExpiredModal } from './navigation.js';
 import {
   clearOverlayEl,
   btnClearRetryEl,
@@ -127,6 +128,17 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
   }
 
   if (gameState.gameMode === 'daily') {
+    const puzzleDateSeed =
+      gameState.board?.dateSeed || gameState.dateSeed || getTodayKSTDateSeed().seed;
+    const currentTodaySeed = getTodayKSTDateSeed().seed;
+
+    // 만약 클리어한 퍼즐의 날짜가 오늘(KST)과 다르다면 (클리어 직전에 자정이 지났거나 잔류한 퍼즐)
+    if (puzzleDateSeed && String(puzzleDateSeed) !== currentTodaySeed) {
+      if (clearOverlayEl) clearOverlayEl.hidden = true;
+      openDailyExpiredModal();
+      return;
+    }
+
     if (!authState.isLoggedIn) {
       clearModeRewardEl.hidden = false;
       clearModeRewardEl.textContent = '💡 구조 성공! 로비에서 대원 로그인 시 일일 순위표에 기록됩니다.';
@@ -137,11 +149,27 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
     clearModeRewardEl.textContent = '📡 일일 챌린지 기록을 서버에 자동 제출 중...';
     try {
       const res = await submitDailyChallengeRecord({
-        dateSeed: gameState.dateSeed || getTodayKSTDateSeed().seed,
+        dateSeed: puzzleDateSeed,
         difficulty: gameState.dailyDifficultyMode,
         moveCount: gameState.moveCount,
         collisionCount: gameState.collisionCount,
       });
+
+      // 만약 서버에서 날짜 불일치/만료 판정(EXPIRED_DATE)이 내려왔다면 즉시 만료 팝업 표시
+      if (
+        res &&
+        (!res.ok || res.code === 'EXPIRED_DATE') &&
+        (res.code === 'EXPIRED_DATE' ||
+          (res.message &&
+            (res.message.includes('경과') ||
+              res.message.includes('만료') ||
+              res.message.includes('시간'))))
+      ) {
+        if (clearOverlayEl) clearOverlayEl.hidden = true;
+        openDailyExpiredModal();
+        return;
+      }
+
       if (res && res.ok) {
         if (res.status === 'INSERTED') {
           clearModeRewardEl.textContent = '🏆 오늘의 일일 챌린지 첫 클리어 기록이 등록되었습니다!';

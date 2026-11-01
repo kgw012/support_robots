@@ -52,13 +52,15 @@ export const btnBackLobbyEl = document.getElementById('btn-back-lobby');
 export const hudModeTitleEl = document.getElementById('hud-mode-title');
 export const btnOpenLeaderboardEl = document.getElementById('btn-open-leaderboard');
 
-// 로딩 오버레이 & 이탈 확인 모달
+// 로딩 오버레이 & 이탈 확인 모달 & 일일 챌린지 만료 모달
 export const puzzleLoadingOverlayEl = document.getElementById('puzzle-loading-overlay');
 export const loadingTitleEl = document.getElementById('loading-title');
 export const loadingSubEl = document.getElementById('loading-sub');
 export const leaveConfirmModalEl = document.getElementById('leave-confirm-modal');
 export const btnLeaveStayEl = document.getElementById('btn-leave-stay');
 export const btnLeaveConfirmEl = document.getElementById('btn-leave-confirm');
+export const dailyExpiredModalEl = document.getElementById('daily-expired-modal');
+export const btnDailyExpiredConfirmEl = document.getElementById('btn-daily-expired-confirm');
 
 // 인게임 상단 HUD 팝오버
 export const hudTargetBadgeEl = document.getElementById('hud-target-badge');
