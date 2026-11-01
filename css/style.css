@@ -1957,6 +1957,37 @@ button.mode-guide-badge:active {
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
 }
 
+.clear-btn.photo-btn {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  padding: 10px 14px;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.clear-btn.photo-btn[hidden] {
+  display: none !important;
+}
+
+.clear-btn.photo-btn:hover {
+  background: linear-gradient(135deg, #6d28d9, #4338ca);
+}
+
+.clear-btn.photo-btn.is-loading {
+  opacity: 0.8;
+  cursor: wait;
+}
+
+.clear-btn.photo-btn.is-success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+}
+
 /* 하단 모바일 엄지 조작 영역 (되돌리기 / 처음부터) */
 .bottom-action-bar {
   display: grid;

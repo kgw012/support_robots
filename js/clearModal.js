@@ -3,7 +3,7 @@
  * @description 퍼즐 클리어 결과 오버레이, 보상 지급/기록 제출 및 SNS 공유 모듈
  */
 
-import { gameState, updateBestRecord, getTodayKSTDateSeed, DIFF_META } from './state.js';
+import { gameState, updateBestRecord, getTodayKSTDateSeed, DIFF_META, getSolutionPath } from './state.js';
 import { getCurrentTutorialStep, isTutorialFinalStep } from './tutorial.js';
 import {
   authState,
@@ -14,18 +14,22 @@ import {
 import { playButtonClick } from './audio.js';
 import { logger } from './logger.js';
 import { openDailyExpiredModal } from './navigation.js';
+import { downloadSolutionRouteImage } from './routeImage.js';
 import {
   clearOverlayEl,
   btnClearRetryEl,
   btnClearNextEl,
   btnClearShareEl,
   btnClearShareTextEl,
+  btnClearPhotoEl,
+  btnClearPhotoTextEl,
   clearModeRewardEl,
   btnClearCloseEl,
   btnReopenClearEl,
 } from './elements.js';
 
 let shareFeedbackTimer = null;
+let photoFeedbackTimer = null;
 let onRetryCallback = null;
 let onNextCallback = null;
 
@@ -109,6 +113,60 @@ export async function handleShareDailyRecord() {
   } else {
     logger.warn('Share copy failed', { diffKey });
     showShareFeedback('⚠️ 복사 실패 (직접 복사해 주세요)');
+  }
+}
+
+/**
+ * 일일 챌린지 풀이 경로 고해상도 인증 사진 다운로드
+ */
+export async function handleDownloadSolutionPhoto() {
+  playButtonClick();
+  if (!btnClearPhotoEl || !btnClearPhotoTextEl) return;
+  if (btnClearPhotoEl.classList.contains('is-loading')) return;
+
+  if (photoFeedbackTimer) clearTimeout(photoFeedbackTimer);
+
+  btnClearPhotoEl.classList.add('is-loading');
+  btnClearPhotoTextEl.textContent = '📸 사진 생성 중...';
+
+  try {
+    const solutionData = gameState.clearedSolution || {
+      gameMode: gameState.gameMode,
+      dateSeed: gameState.board?.dateSeed || gameState.dateSeed || getTodayKSTDateSeed().seed,
+      difficulty: gameState.dailyDifficultyMode || gameState.selectedDifficultyMode || 'normal',
+      moveCount: gameState.moveCount,
+      collisionCount: gameState.collisionCount,
+      initialRobots: gameState.initialRobots,
+      finalRobots: gameState.robots,
+      activeTarget: gameState.activeTarget,
+      board: gameState.board,
+      path: getSolutionPath(),
+    };
+
+    const res = await downloadSolutionRouteImage(solutionData);
+
+    btnClearPhotoEl.classList.remove('is-loading');
+    btnClearPhotoEl.classList.add('is-success');
+    btnClearPhotoTextEl.textContent =
+      res.method === 'share' ? '✅ 사진 공유 완료!' : '✅ 사진 저장 완료!';
+
+    photoFeedbackTimer = setTimeout(() => {
+      if (btnClearPhotoEl) {
+        btnClearPhotoEl.classList.remove('is-success');
+      }
+      if (btnClearPhotoTextEl) {
+        btnClearPhotoTextEl.textContent = '내 풀이 사진 저장';
+      }
+    }, 2500);
+  } catch (err) {
+    logger.error('Failed to download solution photo', err);
+    btnClearPhotoEl.classList.remove('is-loading');
+    btnClearPhotoTextEl.textContent = '⚠️ 저장 실패 (다시 시도)';
+    photoFeedbackTimer = setTimeout(() => {
+      if (btnClearPhotoTextEl) {
+        btnClearPhotoTextEl.textContent = '내 풀이 사진 저장';
+      }
+    }, 2500);
   }
 }
 
@@ -284,6 +342,7 @@ export function openClearOverlay(solverFeedback, onScoreSync) {
     }
 
     if (btnClearShareEl) btnClearShareEl.hidden = true;
+    if (btnClearPhotoEl) btnClearPhotoEl.hidden = true;
   } else {
     if (clearTitleEl) clearTitleEl.textContent = '구조 성공!';
     if (btnClearRetryEl) {
@@ -299,6 +358,13 @@ export function openClearOverlay(solverFeedback, onScoreSync) {
     }
     if (btnClearShareTextEl) {
       btnClearShareTextEl.textContent = '기록 공유하기';
+    }
+    if (btnClearPhotoEl) {
+      btnClearPhotoEl.hidden = !isDaily;
+      btnClearPhotoEl.classList.remove('is-success', 'is-loading');
+    }
+    if (btnClearPhotoTextEl) {
+      btnClearPhotoTextEl.textContent = '내 풀이 사진 저장';
     }
   }
 
@@ -343,6 +409,10 @@ export function initClearModal({ onRetry, onNext }) {
 
   if (btnClearShareEl) {
     btnClearShareEl.addEventListener('click', handleShareDailyRecord);
+  }
+
+  if (btnClearPhotoEl) {
+    btnClearPhotoEl.addEventListener('click', handleDownloadSolutionPhoto);
   }
 
   if (btnClearNextEl) {

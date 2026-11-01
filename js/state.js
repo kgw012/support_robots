@@ -398,6 +398,7 @@ export const gameState = {
   hasRicocheted: false,   // 목표 로봇이 최소 1회 이상 방향 전환(90도 꺾임)했는지 여부
   isCleared: false,       // 현재 라운드 클리어 여부
   undoStack: [],          // 5단계 Undo용 스택
+  clearedSolution: null,  // 클리어 시점 풀이 경로 스냅샷 { path, initialRobots, finalRobots, ... }
 };
 
 /**
@@ -646,6 +647,7 @@ export async function initGameState(options = {}) {
   gameState.hasRicocheted = false;
   gameState.isCleared = false;
   gameState.undoStack = [];
+  gameState.clearedSolution = null;
 
   return gameState;
 }
@@ -668,11 +670,12 @@ export function updateBestRecord(moveCount, collisionCount) {
 
 /**
  * 로봇 이동 직전에 현재 상태를 Undo 스택에 기록합니다.
- * 저장 정보(5단계 규격 + 이동 방향): [움직인 로봇 색상, 출발 전 좌표, 이동 전 누적 이동 횟수, 이동 전 로봇 간 충돌 횟수, 이동 방향]
+ * 저장 정보(5단계 규격 + 이동 방향 + 도착 좌표): [움직인 로봇 색상, 출발 전 좌표, 이동 전 누적 이동 횟수, 이동 전 로봇 간 충돌 횟수, 이동 방향, 도착 좌표]
  * @param {string} robotColor 움직인 로봇 색상
  * @param {string} [direction] 이동 방향 ('UP' | 'RIGHT' | 'DOWN' | 'LEFT')
+ * @param {{row: number, col: number}} [endCoord] 이동 완료 후의 정지 좌표
  */
-export function recordMoveForUndo(robotColor, direction = null) {
+export function recordMoveForUndo(robotColor, direction = null, endCoord = null) {
   const prevPos = gameState.robots[robotColor];
   if (!prevPos) return;
 
@@ -682,6 +685,7 @@ export function recordMoveForUndo(robotColor, direction = null) {
     gameState.moveCount,
     gameState.collisionCount,
     direction,
+    endCoord ? { row: endCoord.row, col: endCoord.col } : null,
   ]);
 }
 
@@ -703,6 +707,7 @@ export function undoLastMove() {
   gameState.moveCount = prevMoveCount;
   gameState.collisionCount = prevCollisionCount;
   gameState.isCleared = false;
+  gameState.clearedSolution = null;
 
   return true;
 }
@@ -722,6 +727,7 @@ export function resetCurrentRound() {
   gameState.hasRicocheted = false;
   gameState.isCleared = false;
   gameState.undoStack = [];
+  gameState.clearedSolution = null;
 
   if (gameState.activeTarget) {
     gameState.selectedRobot =
@@ -731,5 +737,41 @@ export function resetCurrentRound() {
   }
 
   return true;
+}
+
+/**
+ * 현재 라운드에서 클리어까지 수행된 이동 경로 리스트를 반환합니다.
+ * @returns {Array<{ step: number, robotColor: string, from: { row: number, col: number }, to: { row: number, col: number }, direction: string }>}
+ */
+export function getSolutionPath() {
+  if (!gameState.undoStack || gameState.undoStack.length === 0) {
+    return [];
+  }
+
+  return gameState.undoStack.map((entry, idx) => {
+    const robotColor = entry[0];
+    const from = { ...entry[1] };
+    let to = entry[5] ? { ...entry[5] } : null;
+
+    if (!to) {
+      for (let j = idx + 1; j < gameState.undoStack.length; j++) {
+        if (gameState.undoStack[j][0] === robotColor) {
+          to = { ...gameState.undoStack[j][1] };
+          break;
+        }
+      }
+      if (!to && gameState.robots[robotColor]) {
+        to = { ...gameState.robots[robotColor] };
+      }
+    }
+
+    return {
+      step: idx + 1,
+      robotColor,
+      from,
+      to: to || from,
+      direction: entry[4],
+    };
+  });
 }
 

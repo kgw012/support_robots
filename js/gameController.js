@@ -12,6 +12,8 @@ import {
   initGameState,
   isInfinitePuzzleReady,
   DIFF_META,
+  cloneRobots,
+  getSolutionPath,
 } from './state.js';
 import {
   getCurrentTutorialStep,
@@ -182,7 +184,10 @@ export function handleMoveDirection(direction) {
     setTimeout(() => playWallHit(), 70);
   }
 
-  recordMoveForUndo(robotColor, direction);
+  recordMoveForUndo(robotColor, direction, {
+    row: slideResult.endRow,
+    col: slideResult.endCol,
+  });
 
   gameState.robots[robotColor] = {
     row: slideResult.endRow,
@@ -201,6 +206,21 @@ export function handleMoveDirection(direction) {
   const evaluation = evaluateRoundStatus(gameState, robotColor);
   if (evaluation.status === 'CLEARED') {
     gameState.isCleared = true;
+    gameState.clearedSolution = {
+      gameMode: gameState.gameMode,
+      dateSeed: gameState.board?.dateSeed || gameState.dateSeed,
+      difficulty:
+        gameState.gameMode === 'daily'
+          ? gameState.dailyDifficultyMode
+          : gameState.selectedDifficultyMode,
+      moveCount: gameState.moveCount,
+      collisionCount: gameState.collisionCount,
+      initialRobots: cloneRobots(gameState.initialRobots),
+      finalRobots: cloneRobots(gameState.robots),
+      activeTarget: { ...gameState.activeTarget },
+      board: gameState.board,
+      path: getSolutionPath(),
+    };
     if (boardWrapperEl) boardWrapperEl.classList.add('is-cleared');
     if (robotsLayerEl) robotsLayerEl.classList.add('is-cleared');
     if (btnReopenClearEl) btnReopenClearEl.hidden = true;
