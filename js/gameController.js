@@ -233,7 +233,6 @@ export function handleMoveDirection(direction) {
       isOptimal: solverFeedback?.isOptimal ?? false,
     };
     logger.track('puzzle_cleared', clearLogData);
-    logger.info('puzzle_cleared', clearLogData, true);
     openClearOverlay(solverFeedback, () => {
       navigationHandlers.syncAuthUI && navigationHandlers.syncAuthUI();
     });

@@ -151,13 +151,6 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
         collisionCount: gameState.collisionCount,
       });
       if (res && res.ok) {
-        logger.info('daily_challenge_submitted', {
-          dateSeed: gameState.dateSeed || getTodayKSTDateSeed().seed,
-          difficulty: gameState.dailyDifficultyMode,
-          moveCount: gameState.moveCount,
-          collisionCount: gameState.collisionCount,
-          status: res.status,
-        }, true);
         if (res.status === 'INSERTED') {
           clearModeRewardEl.textContent = '🏆 오늘의 일일 챌린지 첫 클리어 기록이 등록되었습니다!';
         } else if (res.status === 'UPDATED') {
@@ -205,11 +198,6 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
   try {
     const res = await addInfiniteModeScore(diffId);
     if (res && res.ok) {
-      logger.info('infinite_score_claimed', {
-        difficulty: diffId,
-        pointsAdded: res.pointsAdded,
-        infiniteScore: res.infiniteScore,
-      }, true);
       clearModeRewardEl.textContent = `✨ 완벽 클리어 +${res.pointsAdded}P 획득! (누적 ${res.infiniteScore}P)`;
       if (typeof onScoreSync === 'function') {
         onScoreSync();
