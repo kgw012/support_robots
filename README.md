@@ -67,9 +67,12 @@
 4. **Web Audio 절차적 사이버펑크 사운드 엔진:**
    * 외부 오디오 파일 다운로드 없이 브라우저 Web Audio API로 신시사이저 사운드(8비트 멜로디, 펑키 베이스, 사인파 화음 패드, 6종 SFX)를 실시간 생성.
    * 선행 큐잉 버퍼(850ms)와 네이티브 노드 해제(`osc.onended`)를 결합하여 백그라운드 맵 연산 중에도 BGM 끊김 0% 보장.
-5. **원스톱 2중 단방향 암호화 인증 (Supabase Serverless):**
+5. **원스톱 2중 단방향 암호화 인증 & 브루트포스 방어 (Supabase Serverless):**
    * 브라우저(`SHA-256`) + DB 내부(`pgcrypto bcrypt`) 2중 해싱으로 비밀번호 원문 노출 차단.
-   * Supabase RLS(Row Level Security) 및 `SECURITY DEFINER` RPC 함수 기반의 무결성 보장.
+   * **무차별 대입(Brute-Force) 방어 시스템:** 연속 5회 오류 시 1분, 10회 이상 오류 시 10분 임시 잠금(`locked_until`) 및 점진적 백오프 적용.
+   * 로그인 성공 시 또는 마지막 실패 후 15분 경과 시 실패 횟수 즉시 초기화 (0회).
+   * 계정 잠금 발생 시 실시간 락아웃 카운트다운 타이머 UI 제공.
+   * Supabase RLS(Row Level Security) 및 `SECURITY DEFINER` RPC 함수 기반의 데이터 무결성 보장.
 
 ---
 

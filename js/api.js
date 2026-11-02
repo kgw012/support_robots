@@ -108,6 +108,40 @@ export function validateNickname(rawNickname) {
 }
 
 /**
+ * 비밀번호 기본 유효성 검증 (최소 4자리 이상, 최대 32자리 이하)
+ * @param {string} rawPassword
+ * @returns {{ valid: boolean, message: string }}
+ */
+export function validatePassword(rawPassword) {
+  const pw = (rawPassword || '').trim();
+  if (!pw) {
+    return {
+      valid: false,
+      message: '비밀번호를 입력해 주세요.',
+    };
+  }
+
+  if (pw.length < 4) {
+    return {
+      valid: false,
+      message: '비밀번호는 최소 4자리 이상 입력해 주세요.',
+    };
+  }
+
+  if (pw.length > 32) {
+    return {
+      valid: false,
+      message: '비밀번호는 최대 32자리 이하로 입력해 주세요.',
+    };
+  }
+
+  return {
+    valid: true,
+    message: '유효한 비밀번호입니다.',
+  };
+}
+
+/**
  * 브라우저 단방향 암호화 (SHA-256)
  * 네트워크 전송 전 평문 비밀번호를 복호화 불가능한 해시로 변환하며,
  * DB 내부에서는 이 값을 다시 pgcrypto bcrypt로 2차 단방향 해싱하여 저장합니다.
@@ -250,11 +284,12 @@ export async function loginOrRegisterUser(rawNickname, rawPassword) {
     return { ok: false, message: nickCheck.message };
   }
 
-  const trimmedPw = (rawPassword || '').trim();
-  if (trimmedPw.length < 4) {
-    return { ok: false, message: '비밀번호는 최소 4자리 이상 입력해 주세요.' };
+  const pwCheck = validatePassword(rawPassword);
+  if (!pwCheck.valid) {
+    return { ok: false, message: pwCheck.message };
   }
 
+  const trimmedPw = (rawPassword || '').trim();
   const passwordHash = await hashPasswordClient(trimmedPw);
   const result = await supabaseRequest('/rest/v1/rpc/rpc_login_or_register', {
     method: 'POST',
@@ -267,6 +302,10 @@ export async function loginOrRegisterUser(rawNickname, rawPassword) {
   if (!result || !result.ok) {
     return {
       ok: false,
+      locked: Boolean(result?.locked),
+      remainingSeconds: result?.remaining_seconds ?? 0,
+      remainingAttempts: result?.remaining_attempts ?? null,
+      failedAttempts: result?.failed_attempts ?? 0,
       message: result?.message || '로그인에 실패했습니다. 닉네임과 비밀번호를 확인해 주세요.',
     };
   }

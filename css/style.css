@@ -445,10 +445,29 @@ body {
   font-weight: 600;
   color: #f87171;
   line-height: 1.4;
+  word-break: keep-all;
 }
 
 .auth-feedback-msg.is-ok {
   color: #4ade80;
+}
+
+.auth-feedback-msg.is-locked {
+  display: block;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  letter-spacing: -0.2px;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
+  animation: pulseLocked 2s infinite ease-in-out;
+}
+
+@keyframes pulseLocked {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.35); }
+  50% { border-color: rgba(239, 68, 68, 0.75); }
 }
 
 .auth-user-view {

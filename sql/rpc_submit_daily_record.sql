@@ -17,13 +17,15 @@ SECURITY DEFINER
 AS $$
 DECLARE
     v_saved_hash TEXT;
+    v_locked_until TIMESTAMPTZ;
     v_today_kst VARCHAR(8);
     v_existing_moves INT;
     v_existing_cols INT;
     v_status TEXT;
 BEGIN
-    -- 1. 유저 인증 검증 (단방향 해시 검증)
-    SELECT password_hash INTO v_saved_hash
+    -- 1. 유저 인증 및 잠금 여부 검증
+    SELECT password_hash, locked_until 
+    INTO v_saved_hash, v_locked_until
     FROM public.users
     WHERE id = p_user_id;
 
@@ -31,6 +33,14 @@ BEGIN
         RETURN jsonb_build_object(
             'ok', false,
             'message', '존재하지 않는 사용자 계정입니다.'
+        );
+    END IF;
+
+    IF v_locked_until IS NOT NULL AND v_locked_until > NOW() THEN
+        RETURN jsonb_build_object(
+            'ok', false,
+            'locked', true,
+            'message', '계정보호를 위해 일시 잠금된 상태입니다. 잠금 해제 후 다시 시도해 주세요.'
         );
     END IF;
 

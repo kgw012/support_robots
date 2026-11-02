@@ -53,6 +53,91 @@ import {
 } from './elements.js';
 
 let lobbyToastTimer = null;
+let lockoutTimer = null;
+const LOCKOUT_STORAGE_KEY = 'sr_auth_lockout_until';
+
+/**
+ * 활성 계정 잠금 카운트다운 타이머 중지
+ */
+function clearLockoutCountdown() {
+  if (lockoutTimer) {
+    clearInterval(lockoutTimer);
+    lockoutTimer = null;
+  }
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(LOCKOUT_STORAGE_KEY);
+    } catch (_) {}
+  }
+}
+
+/**
+ * 현재 잠금 상태 여부 반환
+ */
+function isLockoutActive() {
+  if (typeof window === 'undefined' || !window.localStorage) return false;
+  try {
+    const until = parseInt(window.localStorage.getItem(LOCKOUT_STORAGE_KEY) || '0', 10);
+    return until > Date.now();
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * 계정 잠금 카운트다운 시작
+ * @param {number} totalSeconds
+ */
+function startLockoutCountdown(totalSeconds) {
+  clearLockoutCountdown();
+  const until = Date.now() + Math.max(1, totalSeconds) * 1000;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem(LOCKOUT_STORAGE_KEY, String(until));
+    } catch (_) {}
+  }
+
+  const updateTick = () => {
+    const diffMs = until - Date.now();
+    if (diffMs <= 0) {
+      clearLockoutCountdown();
+      if (btnAuthSubmitEl) btnAuthSubmitEl.disabled = false;
+      showAuthFeedback('계정 잠금이 해제되었습니다. 다시 접속해 주세요.', true, false);
+      return;
+    }
+
+    const remainSec = Math.ceil(diffMs / 1000);
+    const m = Math.floor(remainSec / 60);
+    const s = String(remainSec % 60).padStart(2, '0');
+    if (btnAuthSubmitEl) btnAuthSubmitEl.disabled = true;
+    showAuthFeedback(
+      `⏳ 계정보호를 위해 임시 잠금되었습니다. (${m}분 ${s}초 후 재시도 가능)`,
+      false,
+      true
+    );
+  };
+
+  updateTick();
+  lockoutTimer = setInterval(updateTick, 1000);
+}
+
+/**
+ * 저장된 잠금 만료 시간 확인 및 복원
+ */
+function checkStoredLockout() {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const raw = window.localStorage.getItem(LOCKOUT_STORAGE_KEY);
+    if (!raw) return;
+    const until = parseInt(raw, 10);
+    const diffSec = Math.ceil((until - Date.now()) / 1000);
+    if (diffSec > 0) {
+      startLockoutCountdown(diffSec);
+    } else {
+      window.localStorage.removeItem(LOCKOUT_STORAGE_KEY);
+    }
+  } catch (_) {}
+}
 
 export function syncAuthUI() {
   if (!authLoginFormEl || !authUserViewEl) return;
@@ -71,10 +156,11 @@ export function syncAuthUI() {
   }
 }
 
-export function showAuthFeedback(msg, isOk = false) {
+export function showAuthFeedback(msg, isOk = false, isLocked = false) {
   if (!authFeedbackMsgEl) return;
   authFeedbackMsgEl.textContent = msg;
   authFeedbackMsgEl.classList.toggle('is-ok', isOk);
+  authFeedbackMsgEl.classList.toggle('is-locked', isLocked);
   authFeedbackMsgEl.hidden = false;
 }
 
@@ -165,11 +251,19 @@ export function initLobbyEvents({
   onStartTutorial,
   onOpenLeaderboard,
 }) {
+  // 로비 초기화 시 기존 계정 잠금 여부 복원
+  checkStoredLockout();
+
   // 0. 로그인 / 자동 가입 폼 이벤트
   if (authLoginFormEl) {
     authLoginFormEl.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!inputNicknameEl || !inputPasswordEl) return;
+
+      if (isLockoutActive()) {
+        showLobbyToast('계정보호를 위해 잠금 처리된 상태입니다. 잠시 후 시도해 주세요.');
+        return;
+      }
 
       if (btnAuthSubmitEl) btnAuthSubmitEl.disabled = true;
       showAuthFeedback('인증 확인 중...', true);
@@ -181,8 +275,13 @@ export function initLobbyEvents({
         );
         if (!res.ok) {
           logger.warn('User auth failed', { message: res.message });
-          showAuthFeedback(res.message, false);
+          if (res.locked) {
+            startLockoutCountdown(res.remainingSeconds || 60);
+          } else {
+            showAuthFeedback(res.message, false);
+          }
         } else {
+          clearLockoutCountdown();
           logger.track('auth_success', { isNew: Boolean(res.isNew) });
           if (authFeedbackMsgEl) authFeedbackMsgEl.hidden = true;
           inputPasswordEl.value = '';
@@ -197,7 +296,9 @@ export function initLobbyEvents({
         logger.error('Auth request exception', err);
         showAuthFeedback('서버 통신에 실패했습니다. 잠시 후 다시 시도해 주세요.', false);
       } finally {
-        if (btnAuthSubmitEl) btnAuthSubmitEl.disabled = false;
+        if (!isLockoutActive() && btnAuthSubmitEl) {
+          btnAuthSubmitEl.disabled = false;
+        }
       }
     });
   }

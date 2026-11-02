@@ -84,6 +84,7 @@ const MANGLE_IDENTIFIERS = [
   'INFINITE_DIFF_POINTS',
   'authState',
   'validateNickname',
+  'validatePassword',
   'hashPasswordClient',
   'supabaseRequest',
   'saveSessionToStorage',
