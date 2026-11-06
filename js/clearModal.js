@@ -408,6 +408,9 @@ export function initClearModal({ onRetry, onNext }) {
   if (btnClearRetryEl) {
     btnClearRetryEl.addEventListener('click', () => {
       playButtonClick();
+      if (clearOverlayEl) {
+        clearOverlayEl.hidden = true;
+      }
       if (typeof onRetryCallback === 'function') {
         onRetryCallback();
       }

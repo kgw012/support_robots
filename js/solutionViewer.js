@@ -236,16 +236,26 @@ export async function handleConfirmViewSolution() {
   const cached = gameState.cachedSolution;
   const isCacheValid = cached && cached.puzzleKey === puzzleKey && cached.dataUrl;
 
-  // 이전 잔상 이미지 즉시 초기화
-  solutionViewImgEl.src = '';
-  solutionViewImgEl.style.opacity = '0';
+  const displayImage = (dataUrl) => {
+    solutionViewImgEl.onload = () => {
+      solutionViewImgEl.style.opacity = '1';
+      if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
+    };
+    solutionViewImgEl.onerror = () => {
+      logger.error('Failed to load solution image');
+      if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
+    };
+    solutionViewImgEl.src = dataUrl;
+    if (solutionViewImgEl.complete && solutionViewImgEl.naturalWidth > 0) {
+      solutionViewImgEl.style.opacity = '1';
+      if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
+    }
+  };
 
   // 2. 백그라운드에서 사전 연산된 캐시가 현재 퍼즐과 100% 일치하는 경우 -> 솔버 재실행 없이 0ms 즉시 표시!
   if (isCacheValid) {
     solutionViewModalEl.hidden = false;
-    if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
-    solutionViewImgEl.src = cached.dataUrl;
-    solutionViewImgEl.style.opacity = '1';
+    displayImage(cached.dataUrl);
 
     logger.track('infinite_solution_viewed_cached', {
       difficulty: gameState.selectedDifficultyMode,
@@ -308,9 +318,7 @@ export async function handleConfirmViewSolution() {
 
     // 최종 검증 후 이미지 표시
     if (getCurrentPuzzleKey() === puzzleKey) {
-      solutionViewImgEl.src = dataUrl;
-      solutionViewImgEl.style.opacity = '1';
-      if (solutionViewLoadingEl) solutionViewLoadingEl.hidden = true;
+      displayImage(dataUrl);
 
       gameState.cachedSolution = {
         puzzleKey,
