@@ -1,6 +1,7 @@
 -- ==============================================================================
 -- Function: public.rpc_submit_daily_record
--- Description: 일일 챌린지 기록 검증 및 등록 (KST 자정 날짜 검증 & 타이 브레이커 갱신)
+-- Description: 일일 챌린지 기록 검증, 등록(KST 자정 날짜 검증 & 타이 브레이커 갱신)
+--              및 최초 클리어 시 난이도별 고정 명예 점수(total_score) 자동 적립
 -- ==============================================================================
 
 CREATE OR REPLACE FUNCTION public.rpc_submit_daily_record(
@@ -14,18 +15,22 @@ CREATE OR REPLACE FUNCTION public.rpc_submit_daily_record(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_saved_hash TEXT;
     v_locked_until TIMESTAMPTZ;
+    v_total_score INT;
     v_today_kst VARCHAR(8);
     v_existing_moves INT;
     v_existing_cols INT;
     v_status TEXT;
+    v_norm_diff VARCHAR(16);
+    v_points_added INT := 0;
 BEGIN
     -- 1. 유저 인증 및 잠금 여부 검증
-    SELECT password_hash, locked_until 
-    INTO v_saved_hash, v_locked_until
+    SELECT password_hash, locked_until, COALESCE(total_score, 0)
+    INTO v_saved_hash, v_locked_until, v_total_score
     FROM public.users
     WHERE id = p_user_id;
 
@@ -52,6 +57,15 @@ BEGIN
         );
     END IF;
 
+    -- 난이도 유효성 검증
+    v_norm_diff := LOWER(TRIM(COALESCE(p_difficulty, '')));
+    IF v_norm_diff NOT IN ('easy', 'normal', 'hard', 'hell') THEN
+        RETURN jsonb_build_object(
+            'ok', false,
+            'message', '유효하지 않은 난이도입니다.'
+        );
+    END IF;
+
     -- 2. 한국 표준시(KST, Asia/Seoul) 기준 현재 오늘 날짜 시드 계산
     v_today_kst := TO_CHAR(NOW() AT TIME ZONE 'Asia/Seoul', 'YYYYMMDD');
 
@@ -70,10 +84,10 @@ BEGIN
     FROM public.challenge_records
     WHERE user_id = p_user_id
       AND date_seed = p_date_seed
-      AND difficulty = p_difficulty;
+      AND difficulty = v_norm_diff;
 
     IF v_existing_moves IS NULL THEN
-        -- 최초 등록 (INSERT)
+        -- 최초 등록 (INSERT) -> 난이도별 고정 명예 점수 1회 지급
         INSERT INTO public.challenge_records (
             user_id,
             date_seed,
@@ -84,14 +98,29 @@ BEGIN
         ) VALUES (
             p_user_id,
             p_date_seed,
-            p_difficulty,
+            v_norm_diff,
             p_move_count,
             p_collision_count,
             NOW()
         );
         v_status := 'INSERTED';
+
+        v_points_added := CASE v_norm_diff
+            WHEN 'easy' THEN 10
+            WHEN 'normal' THEN 25
+            WHEN 'hard' THEN 50
+            WHEN 'hell' THEN 100
+            ELSE 0
+        END;
+
+        IF v_points_added > 0 THEN
+            UPDATE public.users
+            SET total_score = COALESCE(total_score, 0) + v_points_added
+            WHERE id = p_user_id
+            RETURNING total_score INTO v_total_score;
+        END IF;
     ELSE
-        -- 기존 기록 존재 시 우선권 판정:
+        -- 기존 기록 존재 시 우선권 판정 (점수 중복 지급 없음):
         -- 우선순위 1: 최소 이동 횟수 (move_count 낮을수록 우수)
         -- 우선순위 2: 최다 로봇 간 충돌 횟수 (collision_count 높을수록 우수)
         IF p_move_count < v_existing_moves
@@ -102,7 +131,7 @@ BEGIN
                 submitted_at = NOW()
             WHERE user_id = p_user_id
               AND date_seed = p_date_seed
-              AND difficulty = p_difficulty;
+              AND difficulty = v_norm_diff;
             v_status := 'UPDATED';
         ELSE
             v_status := 'MAINTAINED';
@@ -113,9 +142,11 @@ BEGIN
         'ok', true,
         'status', v_status,
         'date_seed', p_date_seed,
-        'difficulty', p_difficulty,
+        'difficulty', v_norm_diff,
         'move_count', p_move_count,
-        'collision_count', p_collision_count
+        'collision_count', p_collision_count,
+        'points_added', v_points_added,
+        'total_score', v_total_score
     );
 END;
 $$;

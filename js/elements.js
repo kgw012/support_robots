@@ -18,8 +18,14 @@ export const inputPasswordEl = document.getElementById('input-password');
 export const btnAuthSubmitEl = document.getElementById('btn-auth-submit');
 export const authFeedbackMsgEl = document.getElementById('auth-feedback-msg');
 export const authUserViewEl = document.getElementById('auth-user-view');
+export const authUserRankBadgeEl = document.getElementById('auth-user-rank-badge');
+export const lobbyRankDrawerEl = document.getElementById('lobby-rank-drawer');
 export const authUserNicknameEl = document.getElementById('auth-user-nickname');
+export const authUserHonorScoreEl = document.getElementById('auth-user-honor-score');
 export const authUserInfScoreEl = document.getElementById('auth-user-inf-score');
+export const authRankNextLabelEl = document.getElementById('auth-rank-next-label');
+export const authRankRemainLabelEl = document.getElementById('auth-rank-remain-label');
+export const authRankBarFillEl = document.getElementById('auth-rank-bar-fill');
 export const btnAuthLogoutEl = document.getElementById('btn-auth-logout');
 
 export const btnModeDailyEl = document.getElementById('btn-mode-daily');

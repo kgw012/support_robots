@@ -10,6 +10,8 @@ import {
   submitDailyChallengeRecord,
   addInfiniteModeScore,
   INFINITE_DIFF_POINTS,
+  DAILY_DIFF_POINTS,
+  getHonorRankInfo,
 } from './api.js';
 import { playButtonClick } from './audio.js';
 import { logger } from './logger.js';
@@ -206,10 +208,14 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
     }
 
     if (!authState.isLoggedIn) {
+      const expectedDailyPts = DAILY_DIFF_POINTS[gameState.dailyDifficultyMode] || 10;
       clearModeRewardEl.hidden = false;
-      clearModeRewardEl.textContent = '💡 구조 성공! 로비에서 대원 로그인 시 일일 순위표에 기록됩니다.';
+      clearModeRewardEl.textContent = `💡 구조 성공! 로비에서 대원 로그인 시 일일 순위표 등록 및 명예 점수(+${expectedDailyPts}P)가 적립됩니다.`;
       return;
     }
+
+    const prevTotalScore = Number(authState.user?.total_score ?? 0);
+    const prevRank = getHonorRankInfo(prevTotalScore).current;
 
     clearModeRewardEl.hidden = false;
     clearModeRewardEl.textContent = '📡 일일 챌린지 기록을 서버에 자동 제출 중...';
@@ -238,7 +244,20 @@ export async function handleModeClearSubmission(solverFeedback, onScoreSync) {
 
       if (res && res.ok) {
         if (res.status === 'INSERTED') {
-          clearModeRewardEl.textContent = '🏆 오늘의 일일 챌린지 첫 클리어 기록이 등록되었습니다!';
+          const addedPts = Number(
+            res.points_added ?? DAILY_DIFF_POINTS[gameState.dailyDifficultyMode] ?? 0
+          );
+          const newTotal = Number(res.total_score ?? authState.user?.total_score ?? prevTotalScore);
+          const newRank = getHonorRankInfo(newTotal).current;
+
+          if (newRank.title !== prevRank.title) {
+            clearModeRewardEl.textContent = `🎉 첫 클리어 +${addedPts}P! 계급 승급: ${newRank.icon} ${newRank.title} (명예 ${newTotal.toLocaleString()}P)`;
+          } else {
+            clearModeRewardEl.textContent = `🏆 오늘 첫 클리어 +${addedPts}P 획득! (일일 명예 ${newTotal.toLocaleString()}P)`;
+          }
+          if (typeof onScoreSync === 'function') {
+            onScoreSync();
+          }
         } else if (res.status === 'UPDATED') {
           clearModeRewardEl.textContent = '🔥 오늘의 일일 챌린지 개인 최고 기록을 경신했습니다!';
         } else {

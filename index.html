@@ -202,14 +202,40 @@
 
         <!-- 로그인 완료 상태 -->
         <div id="auth-user-view" class="auth-user-view" hidden>
-          <div class="auth-user-info">
-            <span class="auth-user-badge">대원</span>
-            <strong id="auth-user-nickname" class="auth-user-name">-</strong>
+          <div class="auth-user-top-row">
+            <div class="auth-user-identity">
+              <button
+                type="button"
+                id="auth-user-rank-badge"
+                class="auth-user-badge is-rank is-clickable"
+                aria-expanded="false"
+                aria-controls="lobby-rank-drawer"
+                title="계급별 필요 점수 보기"
+              >
+                🪖 신병 ▾
+              </button>
+              <strong id="auth-user-nickname" class="auth-user-name">-</strong>
+            </div>
+            <button type="button" id="btn-auth-logout" class="auth-logout-btn">로그아웃</button>
+          </div>
+          <div id="lobby-rank-drawer" class="lobby-rank-drawer" hidden></div>
+          <div class="auth-user-scores-row">
+            <span class="auth-score-pill is-honor">
+              일일 명예 <strong id="auth-user-honor-score">0</strong>P
+            </span>
             <span class="auth-score-pill">
-              무한 점수 <strong id="auth-user-inf-score">0</strong>P
+              무한 <strong id="auth-user-inf-score">0</strong>P
             </span>
           </div>
-          <button type="button" id="btn-auth-logout" class="auth-logout-btn">로그아웃</button>
+          <div class="auth-rank-progress">
+            <div class="auth-rank-progress-text">
+              <span id="auth-rank-next-label">다음 계급: 🎖️ 분대장 (100P)</span>
+              <span id="auth-rank-remain-label" class="auth-rank-remain">100P 남음</span>
+            </div>
+            <div class="auth-rank-bar-track" aria-hidden="true">
+              <div id="auth-rank-bar-fill" class="auth-rank-bar-fill"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -707,8 +733,9 @@
         </div>
 
         <div id="leaderboard-mode-tabs" class="lb-mode-tabs">
-          <button type="button" class="lb-mode-tab is-active" data-lb-mode="daily">일일 챌린지</button>
-          <button type="button" class="lb-mode-tab" data-lb-mode="infinite">무한 모드 (누적 점수)</button>
+          <button type="button" class="lb-mode-tab is-active" data-lb-mode="daily">오늘의 순위</button>
+          <button type="button" class="lb-mode-tab" data-lb-mode="honor">명예 랭킹</button>
+          <button type="button" class="lb-mode-tab" data-lb-mode="infinite">무한 모드</button>
         </div>
 
         <div id="leaderboard-diff-tabs" class="drawer-diff-options">

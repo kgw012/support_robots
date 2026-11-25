@@ -8,7 +8,9 @@ import {
   authState,
   loginOrRegisterUser,
   logoutUser,
+  getHonorRankInfo,
 } from './api.js';
+import { buildHonorRankGuideHTML } from './leaderboardModal.js';
 import {
   isBGMMuted,
   isSFXMuted,
@@ -22,8 +24,14 @@ import {
   btnAuthSubmitEl,
   authFeedbackMsgEl,
   authUserViewEl,
+  authUserRankBadgeEl,
+  lobbyRankDrawerEl,
   authUserNicknameEl,
+  authUserHonorScoreEl,
   authUserInfScoreEl,
+  authRankNextLabelEl,
+  authRankRemainLabelEl,
+  authRankBarFillEl,
   btnAuthLogoutEl,
   btnLoreToggleEl,
   lobbyLoreBodyEl,
@@ -144,15 +152,48 @@ export function syncAuthUI() {
   if (authState.isLoggedIn && authState.user) {
     authLoginFormEl.hidden = true;
     authUserViewEl.hidden = false;
+
+    const totalScore = Number(authState.user.total_score ?? 0);
+    const infScore = Number(authState.user.infinite_score ?? 0);
+    const rankInfo = getHonorRankInfo(totalScore);
+    const isDrawerOpen = Boolean(lobbyRankDrawerEl && !lobbyRankDrawerEl.hidden);
+
+    if (authUserRankBadgeEl) {
+      authUserRankBadgeEl.textContent = `${rankInfo.current.icon} ${rankInfo.current.title} ${isDrawerOpen ? '▴' : '▾'}`;
+      authUserRankBadgeEl.setAttribute('aria-expanded', isDrawerOpen ? 'true' : 'false');
+    }
+    if (lobbyRankDrawerEl) {
+      lobbyRankDrawerEl.innerHTML =
+        `<div class="lobby-rank-drawer-head">계급별 필요 점수 (일일 명예 누적)</div>` +
+        buildHonorRankGuideHTML(totalScore);
+    }
     if (authUserNicknameEl) {
       authUserNicknameEl.textContent = authState.user.nickname;
     }
+    if (authUserHonorScoreEl) {
+      authUserHonorScoreEl.textContent = totalScore.toLocaleString();
+    }
     if (authUserInfScoreEl) {
-      authUserInfScoreEl.textContent = String(authState.user.infinite_score ?? 0);
+      authUserInfScoreEl.textContent = infScore.toLocaleString();
+    }
+    if (authRankNextLabelEl) {
+      authRankNextLabelEl.textContent = rankInfo.next
+        ? `다음 계급: ${rankInfo.next.icon} ${rankInfo.next.title} (${rankInfo.next.minScore.toLocaleString()}P)`
+        : `최고 계급: ${rankInfo.current.icon} ${rankInfo.current.title} 달성`;
+    }
+    if (authRankRemainLabelEl) {
+      authRankRemainLabelEl.textContent = rankInfo.next
+        ? `${rankInfo.remainingToNext.toLocaleString()}P 남음`
+        : 'MAX';
+    }
+    if (authRankBarFillEl) {
+      authRankBarFillEl.style.width = `${rankInfo.progressPct}%`;
     }
   } else {
     authLoginFormEl.hidden = false;
     authUserViewEl.hidden = true;
+    if (lobbyRankDrawerEl) lobbyRankDrawerEl.hidden = true;
+    if (authUserRankBadgeEl) authUserRankBadgeEl.setAttribute('aria-expanded', 'false');
   }
 }
 
@@ -309,6 +350,14 @@ export function initLobbyEvents({
       logoutUser();
       syncAuthUI();
       showLobbyToast('로그아웃되었습니다.');
+    });
+  }
+
+  if (authUserRankBadgeEl && lobbyRankDrawerEl) {
+    authUserRankBadgeEl.addEventListener('click', () => {
+      playButtonClick();
+      lobbyRankDrawerEl.hidden = !lobbyRankDrawerEl.hidden;
+      syncAuthUI();
     });
   }
 

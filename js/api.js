@@ -19,6 +19,73 @@ export const INFINITE_DIFF_POINTS = Object.freeze({
 });
 
 /**
+ * 일일 챌린지 난이도별 최초 클리어 고정 명예 점수
+ */
+export const DAILY_DIFF_POINTS = Object.freeze({
+  easy: 10,
+  normal: 25,
+  hard: 50,
+  hell: 100,
+});
+
+/**
+ * 일일 챌린지 누적 명예 점수 기반 대원 계급 칭호 테이블 (오름차순, 10단계)
+ */
+export const DAILY_HONOR_RANKS = Object.freeze([
+  { minScore: 0, title: '신병', icon: '🪖' },
+  { minScore: 100, title: '분대장', icon: '🎖️' },
+  { minScore: 250, title: '소대장', icon: '⚔️' },
+  { minScore: 500, title: '중대장', icon: '🛡️' },
+  { minScore: 1000, title: '대대장', icon: '💠' },
+  { minScore: 2000, title: '연대장', icon: '🔰' },
+  { minScore: 4000, title: '여단장', icon: '⭐' },
+  { minScore: 6500, title: '사단장', icon: '🌟' },
+  { minScore: 10000, title: '군단장', icon: '🔥' },
+  { minScore: 15000, title: '사령관', icon: '👑' },
+]);
+
+/**
+ * 누적 명예 점수로 현재 대원 계급 및 다음 계급 진행률을 계산합니다.
+ * @param {number} totalScore
+ */
+export function getHonorRankInfo(totalScore = 0) {
+  const score = Math.max(0, Number(totalScore) || 0);
+  let currentIdx = 0;
+
+  for (let i = DAILY_HONOR_RANKS.length - 1; i >= 0; i--) {
+    if (score >= DAILY_HONOR_RANKS[i].minScore) {
+      currentIdx = i;
+      break;
+    }
+  }
+
+  const current = DAILY_HONOR_RANKS[currentIdx];
+  const next = DAILY_HONOR_RANKS[currentIdx + 1] || null;
+
+  if (!next) {
+    return {
+      score,
+      current,
+      next: null,
+      progressPct: 100,
+      remainingToNext: 0,
+    };
+  }
+
+  const bandSpan = Math.max(1, next.minScore - current.minScore);
+  const earnedInBand = score - current.minScore;
+  const progressPct = Math.min(100, Math.max(0, Math.round((earnedInBand / bandSpan) * 100)));
+
+  return {
+    score,
+    current,
+    next,
+    progressPct,
+    remainingToNext: Math.max(0, next.minScore - score),
+  };
+}
+
+/**
  * 현재 로그인된 유저 상태
  */
 export const authState = {
@@ -350,6 +417,11 @@ export async function submitDailyChallengeRecord({
     },
   });
 
+  if (result && result.ok && typeof result.total_score === 'number') {
+    authState.user.total_score = result.total_score;
+    saveSessionToStorage(authState.user, authState.passwordHash);
+  }
+
   return result;
 }
 
@@ -384,8 +456,19 @@ export async function fetchDailyHistoryLeaderboard(difficulty) {
 }
 
 /**
- * 무한 모드 누적 점수 순위표(상위 50명)를 조회합니다.
+ * 일일 챌린지 누적 명예 점수 순위표(상위 100명)를 조회합니다 (DB 뷰 v_daily_honor_leaderboard 연동).
  */
+export async function fetchDailyHonorLeaderboard() {
+  const query =
+    `/rest/v1/v_daily_honor_leaderboard` +
+    `?select=rank,id,nickname,total_score` +
+    `&order=rank.asc` +
+    `&limit=100`;
+
+  const rows = await supabaseRequest(query);
+  return Array.isArray(rows) ? rows : [];
+}
+
 /**
  * 무한 모드 누적 점수 순위표(상위 100명)를 조회합니다 (DB 뷰 v_infinite_leaderboard 연동).
  */
